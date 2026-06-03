@@ -12,3 +12,4 @@ htmlcov/
 .pytest_cache/
 *.pyc
 .DS_Store
+reports/*.json

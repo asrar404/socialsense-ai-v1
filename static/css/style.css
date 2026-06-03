@@ -1,0 +1,136 @@
+:root {
+    --bs-body-bg: #1a1d23;
+    --bs-body-color: #e9ecef;
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.container {
+    flex: 1;
+}
+
+.footer {
+    flex-shrink: 0;
+}
+
+.card {
+    background-color: #212529;
+    border-color: #2c3034;
+}
+
+.card-header {
+    background-color: #1a1d23;
+    border-bottom-color: #2c3034;
+}
+
+.list-group-item {
+    background-color: #212529;
+}
+
+.table-dark {
+    --bs-table-bg: #212529;
+    --bs-table-hover-bg: #2c3034;
+}
+
+.form-control, .input-group-text {
+    background-color: #2c3034;
+    border-color: #3c4044;
+    color: #e9ecef;
+}
+
+.form-control:focus {
+    background-color: #2c3034;
+    border-color: #0d6efd;
+    color: #e9ecef;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
+
+.form-text {
+    color: #6c757d;
+}
+
+.btn-outline-secondary {
+    border-color: #3c4044;
+    color: #adb5bd;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #3c4044;
+    border-color: #3c4044;
+    color: #e9ecef;
+}
+
+code {
+    color: #e83e8c;
+    background-color: #2c3034;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+}
+
+.alert {
+    border: none;
+}
+
+.min-vh-75 {
+    min-height: 75vh;
+}
+
+.navbar {
+    border-bottom: 1px solid #2c3034;
+}
+
+.dropdown-menu {
+    background-color: #212529;
+    border-color: #2c3034;
+}
+
+.dropdown-item {
+    color: #e9ecef;
+}
+
+.dropdown-item:hover {
+    background-color: #2c3034;
+    color: #fff;
+}
+
+.dropdown-divider {
+    border-color: #2c3034;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1d23;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3c4044;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #4c5054;
+}
+
+@media (max-width: 576px) {
+    .container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .display-4 {
+        font-size: 2rem;
+    }
+
+    .fs-5 {
+        font-size: 0.95rem !important;
+    }
+}

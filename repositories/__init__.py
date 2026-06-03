@@ -1,0 +1,4 @@
+from repositories.user_repository import UserRepository
+from repositories.analysis_repository import AnalysisRepository
+from repositories.comment_result_repository import CommentResultRepository
+from repositories.report_export_repository import ReportExportRepository

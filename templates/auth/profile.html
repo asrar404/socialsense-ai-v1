@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Profile - SocialSense AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-8">
+        <div class="card border-secondary mb-4">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="display-1 text-primary mb-2">
+                        <i class="fas fa-user-circle"></i>
+                    </div>
+                    <h3 class="fw-bold">{{ data.username }}</h3>
+                    <p class="text-muted">{{ data.email }}</p>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-muted">Member Since</h5>
+                                <p class="card-text fs-5">
+                                    {{ data.created_at.strftime('%B %d, %Y') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="card bg-dark border-secondary">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-muted">Total Analyses</h5>
+                                <p class="card-text fs-5">{{ data.analysis_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if data.recent_analyses %}
+        <div class="card border-secondary">
+            <div class="card-header bg-dark">
+                <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Recent Analyses</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for a in data.recent_analyses %}
+                    <a href="{{ url_for('analysis.result', analysis_id=a.id) }}"
+                       class="list-group-item list-group-item-action bg-dark border-secondary">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                {% if a.youtube_analysis %}
+                                <strong>{{ a.youtube_analysis.video_title }}</strong>
+                                <br>
+                                <small class="text-muted">{{ a.youtube_analysis.video_id }}</small>
+                                {% else %}
+                                <strong>Analysis #{{ a.id }}</strong>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ a.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

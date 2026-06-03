@@ -1,0 +1,187 @@
+from flask import current_app
+from database import db
+from models.analysis import Analysis, YouTubeAnalysis
+from models.comment_result import CommentResult
+from repositories.analysis_repository import AnalysisRepository
+from repositories.comment_result_repository import CommentResultRepository
+from services.youtube_service import YouTubeService
+from services.demo_service import DemoService
+from services.risk_scoring_service import RiskScoringService
+
+
+class AnalysisService:
+    def __init__(self):
+        self.analysis_repo = AnalysisRepository()
+        self.comment_repo = CommentResultRepository()
+        self.youtube_service = YouTubeService()
+        self.demo_service = DemoService()
+        self.risk_scorer = RiskScoringService()
+
+    def create_youtube_analysis(self, user_id, video_url):
+        video_id = self.youtube_service.extract_video_id(video_url)
+        if not video_id:
+            return {'success': False, 'error': 'Invalid YouTube URL or Video ID.'}
+
+        api_key = current_app.config.get('YOUTUBE_API_KEY', '')
+        is_demo = not api_key
+
+        if not is_demo:
+            video_info = self.youtube_service.fetch_video_info(video_id)
+            comments = self.youtube_service.fetch_comments(video_id)
+        else:
+            video_info = self.demo_service.get_video_info_by_id(video_id)
+            comments = self.demo_service.get_comments()
+
+        if not video_info:
+            video_info = {
+                'video_id': video_id,
+                'title': f'Video ({video_id})',
+                'channel': 'Unknown',
+                'comment_count': 0,
+            }
+
+        if not comments:
+            comments = []
+
+        analysis = self.analysis_repo.create(user_id=user_id, analysis_type='youtube')
+
+        yt_analysis = YouTubeAnalysis(
+            analysis_id=analysis.id,
+            video_id=video_info['video_id'],
+            video_title=video_info.get('title', 'Unknown Title'),
+            channel_name=video_info.get('channel', 'Unknown'),
+            comment_count=len(comments),
+            is_demo=is_demo,
+        )
+        db.session.add(yt_analysis)
+        db.session.commit()
+
+        all_texts = [c['text'] for c in comments]
+        for comment in comments:
+            self._analyze_and_store_comment(analysis.id, comment, all_texts)
+
+        return {
+            'success': True,
+            'analysis_id': analysis.id,
+            'is_demo': is_demo,
+            'comment_count': len(comments),
+        }
+
+    def _analyze_and_store_comment(self, analysis_id, comment, all_texts):
+        text = comment['text']
+
+        spam = self.risk_scorer.calculate_spam_score(text)
+        toxicity = self.risk_scorer.calculate_toxicity_score(text)
+        sentiment = self.risk_scorer.calculate_sentiment(text)
+        duplicate = self.risk_scorer.calculate_duplicate_score(text, all_texts)
+        ai_like = self.risk_scorer.calculate_ai_like_score(text)
+        bot = self.risk_scorer.calculate_bot_score(text, all_texts)
+        risk = self.risk_scorer.calculate_risk_score(
+            spam['score'], toxicity['score'], sentiment['score'],
+            duplicate['score'], ai_like['score'], bot['score']
+        )
+
+        result = CommentResult(
+            analysis_id=analysis_id,
+            comment_text=text,
+            author=comment.get('author', 'Unknown'),
+            spam_score=spam['score'],
+            spam_explanation=spam['explanation'],
+            toxicity_score=toxicity['score'],
+            toxicity_explanation=toxicity['explanation'],
+            sentiment=sentiment['label'],
+            sentiment_score=sentiment['score'],
+            sentiment_explanation=sentiment['explanation'],
+            duplicate_score=duplicate['score'],
+            duplicate_explanation=duplicate['explanation'],
+            ai_like_score=ai_like['score'],
+            ai_like_explanation=ai_like['explanation'],
+            bot_score=bot['score'],
+            bot_explanation=bot['explanation'],
+            risk_score=risk['score'],
+            risk_level=risk['level'],
+            risk_explanation=risk['explanation'],
+        )
+        db.session.add(result)
+        db.session.commit()
+
+    def get_analysis_results(self, analysis_id, user_id):
+        analysis = self.analysis_repo.get_user_analysis_with_youtube(analysis_id, user_id)
+        if not analysis:
+            return None
+
+        youtube = analysis.youtube_analysis
+        if not youtube:
+            return None
+
+        comments = self.comment_repo.get_by_analysis_id(analysis_id)
+        high_risk = self.comment_repo.get_high_risk_by_analysis(analysis_id)
+        sentiment_dist = self.comment_repo.get_sentiment_distribution(analysis_id)
+        risk_dist = self.comment_repo.get_risk_distribution(analysis_id)
+        averages = self.comment_repo.get_average_scores_by_analysis(analysis_id)
+
+        return {
+            'analysis': analysis,
+            'youtube': youtube,
+            'comments': comments,
+            'high_risk': high_risk,
+            'sentiment_distribution': sentiment_dist,
+            'risk_distribution': risk_dist,
+            'averages': averages,
+            'comment_count': len(comments),
+            'is_demo': youtube.is_demo,
+        }
+
+    def get_recent_user_analyses(self, user_id, limit=10):
+        return self.analysis_repo.get_recent_by_user(user_id, limit)
+
+    def get_dashboard_stats(self, user_id):
+        analyses = self.analysis_repo.get_by_user_id(user_id)
+        total_analyses = len(analyses)
+        total_comments = 0
+        total_spam = 0
+        total_toxicity = 0
+        total_sentiment = 0
+        total_ai = 0
+        total_risk = 0
+        analysis_count = 0
+
+        for analysis in analyses:
+            averages = self.comment_repo.get_average_scores_by_analysis(analysis.id)
+            comment_count = self.comment_repo.count_by_analysis(analysis.id)
+            total_comments += comment_count
+            if comment_count > 0:
+                total_spam += averages['avg_spam']
+                total_toxicity += averages['avg_toxicity']
+                total_sentiment += averages['avg_sentiment']
+                total_ai += averages['avg_ai_like']
+                total_risk += averages['avg_risk']
+                analysis_count += 1
+
+        return {
+            'total_analyses': total_analyses,
+            'total_comments': total_comments,
+            'avg_spam': round(total_spam / max(analysis_count, 1), 1),
+            'avg_toxicity': round(total_toxicity / max(analysis_count, 1), 1),
+            'avg_sentiment': round(total_sentiment / max(analysis_count, 1), 1),
+            'avg_ai_like': round(total_ai / max(analysis_count, 1), 1),
+            'avg_risk': round(total_risk / max(analysis_count, 1), 1),
+        }
+
+    def get_all_user_analyses_with_data(self, user_id):
+        analyses = self.analysis_repo.get_by_user_id(user_id)
+        results = []
+        for a in analyses:
+            yt = a.youtube_analysis
+            averages = self.comment_repo.get_average_scores_by_analysis(a.id)
+            comment_count = self.comment_repo.count_by_analysis(a.id)
+            results.append({
+                'id': a.id,
+                'video_title': yt.video_title if yt else 'N/A',
+                'video_id': yt.video_id if yt else 'N/A',
+                'comment_count': comment_count,
+                'avg_risk': averages['avg_risk'],
+                'is_demo': yt.is_demo if yt else False,
+                'created_at': a.created_at,
+            })
+        return results

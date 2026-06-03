@@ -1,0 +1,16 @@
+Flask>=3.0
+Flask-SQLAlchemy>=3.0
+Flask-Migrate>=4.0
+Flask-WTF>=1.2
+Flask-Login>=0.6
+Werkzeug>=3.0
+python-dotenv>=1.0
+WTForms>=3.1
+google-api-python-client>=2.100
+nltk>=3.8
+scikit-learn>=1.6
+pandas>=2.0
+numpy>=1.24
+gunicorn>=23.0
+pytest>=8.0
+pytest-flask>=1.3

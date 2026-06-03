@@ -1,0 +1,305 @@
+{% extends "base.html" %}
+{% block title %}Analysis Results - SocialSense AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+        <h3 class="fw-bold mb-1">
+            <i class="fas fa-file-alt me-2 text-primary"></i>Analysis Results
+        </h3>
+        <small class="text-muted">
+            <i class="fab fa-youtube text-danger me-1"></i>
+            {{ data.youtube.video_title }} &mdash;
+            <span class="text-muted">{{ data.youtube.channel_name }}</span>
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('analysis.new') }}" class="btn btn-outline-primary">
+            <i class="fas fa-plus"></i>
+        </a>
+        <a href="{{ url_for('export.csv_download', analysis_id=data.analysis.id) }}"
+           class="btn btn-success">
+            <i class="fas fa-file-csv me-1"></i>Export CSV
+        </a>
+    </div>
+</div>
+
+{% if data.is_demo %}
+<div class="alert alert-warning">
+    <i class="fas fa-flask me-2"></i>
+    <strong>Demo Mode</strong> &mdash; Results are based on simulated data.
+</div>
+{% endif %}
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    AI detection is probabilistic and should not be treated as proof.
+    Scores are indicators, not definitive classifications.
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4 col-6">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold text-info">{{ data.comment_count }}</div>
+                <div class="text-muted small">Comments Analyzed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold text-warning">{{ data.averages.avg_risk }}</div>
+                <div class="text-muted small">Average Risk Score</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 col-6">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold text-danger">{{ data.high_risk|length }}</div>
+                <div class="text-muted small">High-Risk Comments</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Risk Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="riskDistChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Sentiment Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="sentimentDistChart" height="180"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
+        <div class="card border-secondary">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-gauge-high me-2"></i>Average Scores</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 text-center">
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Spam</div>
+                            <div class="fw-bold text-danger">{{ data.averages.avg_spam }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Toxicity</div>
+                            <div class="fw-bold text-danger">{{ data.averages.avg_toxicity }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Sentiment</div>
+                            <div class="fw-bold text-success">{{ data.averages.avg_sentiment }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">AI-like</div>
+                            <div class="fw-bold text-warning">{{ data.averages.avg_ai_like }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Bot</div>
+                            <div class="fw-bold text-warning">{{ data.averages.avg_bot }}</div>
+                        </div>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Risk</div>
+                            <div class="fw-bold text-info">{{ data.averages.avg_risk }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if data.high_risk %}
+<div class="card border-danger border-opacity-25 mb-4">
+    <div class="card-header bg-dark text-danger">
+        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Suspicious Comments ({{ data.high_risk|length }})</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            {% for c in data.high_risk %}
+            <div class="list-group-item bg-dark border-secondary">
+                <div class="d-flex justify-content-between mb-1">
+                    <strong class="text-danger">{{ c.author }}</strong>
+                    <span class="badge bg-{{ 'danger' if c.risk_level == 'Critical' else 'warning' }}">
+                        Risk: {{ c.risk_score }}
+                    </span>
+                </div>
+                <p class="mb-1">{{ c.comment_text }}</p>
+                <small class="text-muted">
+                    Spam: {{ c.spam_score }} | Toxicity: {{ c.toxicity_score }} |
+                    Sentiment: {{ c.sentiment }} | AI-like: {{ c.ai_like_score }} |
+                    Bot: {{ c.bot_score }}
+                </small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card border-secondary mb-4">
+    <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-comments me-2"></i>All Comments ({{ data.comment_count }})</h6>
+    </div>
+    <div class="card-body p-0">
+        {% if data.comments %}
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="min-width:200px">Comment</th>
+                        <th>Author</th>
+                        <th>Spam</th>
+                        <th>Toxicity</th>
+                        <th>Sentiment</th>
+                        <th>AI-like</th>
+                        <th>Bot</th>
+                        <th>Risk</th>
+                        <th>Level</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in data.comments %}
+                    <tr>
+                        <td>
+                            <small>{{ c.comment_text|truncate(80) }}</small>
+                        </td>
+                        <td><small>{{ c.author }}</small></td>
+                        <td><small>{{ c.spam_score }}</small></td>
+                        <td><small>{{ c.toxicity_score }}</small></td>
+                        <td>
+                            <small class="text-{{ 'success' if c.sentiment == 'Positive' else 'warning' if c.sentiment == 'Neutral' else 'danger' }}">
+                                {{ c.sentiment }}
+                            </small>
+                        </td>
+                        <td><small>{{ c.ai_like_score }}</small></td>
+                        <td><small>{{ c.bot_score }}</small></td>
+                        <td><small>{{ c.risk_score }}</small></td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if c.risk_level == 'Low' else 'warning' if c.risk_level == 'Medium' else 'danger' }}">
+                                {{ c.risk_level }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="fas fa-inbox fa-3x mb-2"></i>
+            <p>No comments found for this video.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-secondary">
+    <div class="card-body">
+        <h6><i class="fas fa-lightbulb me-2 text-warning"></i>Recommendations</h6>
+        <ul class="small text-muted mb-0">
+            {% if data.averages.avg_risk > 50 %}
+            <li>This video has a high average risk score. Review suspicious comments carefully.</li>
+            {% endif %}
+            {% if data.averages.avg_spam > 30 %}
+            <li>Significant spam activity detected. Consider moderating comments.</li>
+            {% endif %}
+            {% if data.averages.avg_toxicity > 30 %}
+            <li>Toxic language detected. May need community guidelines enforcement.</li>
+            {% endif %}
+            {% if data.averages.avg_ai_like > 30 %}
+            <li>Possible AI-generated comments detected. Review for authenticity.</li>
+            {% endif %}
+            <li>Export the full report as CSV for offline analysis and record-keeping.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const riskData = {
+    labels: ['Low', 'Medium', 'High', 'Critical'],
+    values: [
+        {{ data.risk_distribution.get('Low', 0) }},
+        {{ data.risk_distribution.get('Medium', 0) }},
+        {{ data.risk_distribution.get('High', 0) }},
+        {{ data.risk_distribution.get('Critical', 0) }},
+    ]
+};
+
+const sentData = {
+    labels: ['Positive', 'Neutral', 'Negative'],
+    values: [
+        {{ data.sentiment_distribution.get('Positive', 0) }},
+        {{ data.sentiment_distribution.get('Neutral', 0) }},
+        {{ data.sentiment_distribution.get('Negative', 0) }},
+    ]
+};
+
+new Chart(document.getElementById('riskDistChart'), {
+    type: 'pie',
+    data: {
+        labels: riskData.labels,
+        datasets: [{
+            data: riskData.values,
+            backgroundColor: ['#198754', '#ffc107', '#fd7e14', '#dc3545']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: '#adb5bd' } }
+        }
+    }
+});
+
+new Chart(document.getElementById('sentimentDistChart'), {
+    type: 'bar',
+    data: {
+        labels: sentData.labels,
+        datasets: [{
+            label: 'Comments',
+            data: sentData.values,
+            backgroundColor: ['#198754', '#ffc107', '#dc3545']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { color: '#adb5bd' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+            x: { ticks: { color: '#adb5bd' } }
+        }
+    }
+});
+</script>
+{% endblock %}

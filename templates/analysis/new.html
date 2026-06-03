@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}New Analysis - SocialSense AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-8">
+        <div class="card border-secondary">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="fas fa-video fa-3x text-primary mb-2"></i>
+                    <h3 class="fw-bold">Analyze YouTube Comments</h3>
+                    <p class="text-muted">
+                        Enter a YouTube video URL or ID to analyze its comments
+                    </p>
+                </div>
+
+                {% if is_demo %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-flask me-2"></i>
+                    <strong>Demo Mode</strong> &mdash;
+                    YouTube API key not configured. Analysis will use simulated data.
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('analysis.new') }}" id="analysisForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-4">
+                        <label for="video_url" class="form-label">YouTube Video URL or ID</label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text"><i class="fab fa-youtube text-danger"></i></span>
+                            <input type="text" class="form-control" id="video_url" name="video_url"
+                                   placeholder="https://www.youtube.com/watch?v=... or video ID"
+                                   required autofocus>
+                        </div>
+                        <div class="form-text">
+                            Supports: full URL (youtube.com/watch?v=...), short URL (youtu.be/...),
+                            or raw Video ID
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
+                            <i class="fas fa-search me-2"></i>Analyze Comments
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card border-secondary mt-4">
+            <div class="card-body">
+                <h5><i class="fas fa-info-circle me-2 text-info"></i>How It Works</h5>
+                <ol class="mb-0 text-muted">
+                    <li>Paste a YouTube video URL or ID above</li>
+                    <li>Our engine fetches comments (real or demo data)</li>
+                    <li>Each comment is analyzed for spam, toxicity, sentiment, and more</li>
+                    <li>Results are presented with risk scores and explanations</li>
+                    <li>Export results as CSV for further analysis</li>
+                </ol>
+            </div>
+        </div>
+
+        {% if is_demo %}
+        <div class="card border-warning border-opacity-25 mt-3">
+            <div class="card-body">
+                <h6 class="text-warning">
+                    <i class="fas fa-lightbulb me-2"></i>Demo Mode Tips
+                </h6>
+                <ul class="small text-muted mb-0">
+                    <li>Enter any YouTube URL or ID &mdash; results use sample data</li>
+                    <li>All analysis features work as they would with real data</li>
+                    <li>Set <code>YOUTUBE_API_KEY</code> in <code>.env</code> for live data</li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('analysisForm')?.addEventListener('submit', function(e) {
+    const btn = document.getElementById('analyzeBtn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+    btn.disabled = true;
+});
+</script>
+{% endblock %}

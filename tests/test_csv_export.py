@@ -10,7 +10,7 @@ def test_csv_export_requires_login(client, analysis):
 def test_csv_export_success(logged_in_client, analysis):
     response = logged_in_client.get(f'/export/csv/{analysis.id}')
     assert response.status_code == 200
-    assert 'text/csv' in response.content_type or 'text/csv' in response.mimetype
+    assert 'text/csv' in response.mimetype
 
 
 def test_csv_content(logged_in_client, analysis):
@@ -20,9 +20,17 @@ def test_csv_content(logged_in_client, analysis):
     rows = list(reader)
 
     assert len(rows) > 0
-    assert 'Comment' in rows[0]
-    assert 'Risk Score' in rows[0]
-    assert len(rows) > 1
+    header_row_found = any('Comment' in row and 'Risk Score' in row for row in rows)
+    assert header_row_found, 'CSV should have analysis column headers'
+    assert len(rows) > 2
+
+
+def test_csv_has_video_metadata(logged_in_client, analysis):
+    response = logged_in_client.get(f'/export/csv/{analysis.id}')
+    content = response.data.decode('utf-8')
+    assert 'Video ID' in content
+    assert 'dQw4w9WgXcQ' in content
+    assert 'Test Video' in content
 
 
 def test_csv_export_not_found(logged_in_client):
@@ -32,11 +40,10 @@ def test_csv_export_not_found(logged_in_client):
 
 def test_export_service_generate_csv(app, analysis):
     from services.export_service import ExportService
-    from models.user import User
+    from database import db
 
     with app.app_context():
-        from database import db
-        user = db.session.get(User, analysis.user_id)
+        user = db.session.get(type(analysis.user), analysis.user_id)
         if user:
             result = ExportService().generate_csv(analysis.id, user.id)
             assert result is not None

@@ -9,6 +9,7 @@ class CommentResult(db.Model):
     analysis_id = db.Column(db.Integer, db.ForeignKey('analyses.id'), nullable=False, index=True)
     comment_text = db.Column(db.Text, nullable=False)
     author = db.Column(db.String(200), nullable=True)
+    published_at = db.Column(db.DateTime, nullable=True)
 
     spam_score = db.Column(db.Float, default=0.0)
     spam_explanation = db.Column(db.Text, nullable=True)

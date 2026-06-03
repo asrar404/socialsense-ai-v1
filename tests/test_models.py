@@ -1,3 +1,6 @@
+from datetime import datetime, timezone
+
+
 def test_create_user(app, db):
     from models.user import User
     from werkzeug.security import generate_password_hash
@@ -38,7 +41,12 @@ def test_create_youtube_analysis(app, db, user):
         analysis_id=analysis.id,
         video_id='dQw4w9WgXcQ',
         video_title='Test Video',
+        video_description='Test desc',
         channel_name='Test Channel',
+        published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        view_count=1000,
+        like_count=100,
+        comment_limit=100,
         is_demo=True,
     )
     db.session.add(yt)
@@ -46,7 +54,11 @@ def test_create_youtube_analysis(app, db, user):
 
     assert yt.id is not None
     assert yt.video_id == 'dQw4w9WgXcQ'
-    assert yt.analysis_id == analysis.id
+    assert yt.view_count == 1000
+    assert yt.like_count == 100
+    assert yt.comment_limit == 100
+    assert yt.video_description == 'Test desc'
+    assert yt.published_at is not None
 
 
 def test_create_comment_result(app, db, user, analysis):
@@ -56,6 +68,7 @@ def test_create_comment_result(app, db, user, analysis):
         analysis_id=analysis.id,
         comment_text='Test comment',
         author='TestUser',
+        published_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
         spam_score=10.0,
         toxicity_score=5.0,
         sentiment='Positive',
@@ -68,6 +81,7 @@ def test_create_comment_result(app, db, user, analysis):
     assert c.id is not None
     assert c.comment_text == 'Test comment'
     assert c.risk_level == 'Low'
+    assert c.published_at is not None
 
 
 def test_create_report_export(app, db, analysis):
@@ -97,3 +111,5 @@ def test_analysis_comment_results_relationship(app, db, analysis):
 def test_analysis_youtube_relationship(app, db, analysis):
     assert analysis.youtube_analysis is not None
     assert analysis.youtube_analysis.video_id == 'dQw4w9WgXcQ'
+    assert analysis.youtube_analysis.view_count == 100000
+    assert analysis.youtube_analysis.comment_limit == 100

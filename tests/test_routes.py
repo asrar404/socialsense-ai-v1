@@ -21,10 +21,23 @@ def test_new_analysis_page(logged_in_client):
     assert b'Analyze YouTube' in response.data
 
 
+def test_new_analysis_page_has_limit_options(logged_in_client):
+    response = logged_in_client.get('/analysis/new')
+    assert b'100' in response.data
+    assert b'500' in response.data
+    assert b'1000' in response.data
+
+
 def test_analysis_result(logged_in_client, analysis):
     response = logged_in_client.get(f'/analysis/{analysis.id}')
     assert response.status_code == 200
     assert b'Analysis Results' in response.data or b'Comments' in response.data
+
+
+def test_analysis_result_shows_metadata(logged_in_client, analysis):
+    response = logged_in_client.get(f'/analysis/{analysis.id}')
+    assert b'Test Video' in response.data
+    assert b'100,000' in response.data or b'100000' in response.data
 
 
 def test_analysis_history(logged_in_client, analysis):

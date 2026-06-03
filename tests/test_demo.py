@@ -5,7 +5,20 @@ def test_demo_service_get_video_info():
     assert 'video_id' in info
     assert 'title' in info
     assert 'channel' in info
+    assert 'description' in info
+    assert 'view_count' in info
+    assert 'like_count' in info
+    assert 'published_at' in info
     assert info['is_demo'] is True
+
+
+def test_demo_service_get_video_info_by_id():
+    from services.demo_service import DemoService
+    demo = DemoService()
+    info = demo.get_video_info_by_id('test123')
+    assert info['video_id'] == 'test123'
+    assert info['view_count'] == 50000
+    assert info['like_count'] == 3200
 
 
 def test_demo_service_get_comments():
@@ -15,6 +28,7 @@ def test_demo_service_get_comments():
     assert len(comments) > 0
     assert 'text' in comments[0]
     assert 'author' in comments[0]
+    assert 'published_at' in comments[0]
 
 
 def test_demo_analysis_in_dashboard(logged_in_client, analysis):
@@ -33,3 +47,11 @@ def test_demo_mode_banner(client, app):
     assert response.status_code == 200
     html = response.data.decode()
     assert 'Demo Mode' in html or 'demo' in html.lower()
+
+
+def test_demo_analysis_stores_all_metadata(app, db, user, analysis):
+    yt = analysis.youtube_analysis
+    assert yt.video_description is not None
+    assert yt.view_count > 0
+    assert yt.like_count > 0
+    assert yt.comment_limit == 100

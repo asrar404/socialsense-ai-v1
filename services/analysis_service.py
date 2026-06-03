@@ -4,7 +4,7 @@ from models.analysis import Analysis, YouTubeAnalysis
 from models.comment_result import CommentResult
 from repositories.analysis_repository import AnalysisRepository
 from repositories.comment_result_repository import CommentResultRepository
-from services.youtube_service import YouTubeService
+from services.youtube_service import YouTubeService, YouTubeAPIError
 from services.demo_service import DemoService
 from services.risk_scoring_service import RiskScoringService
 
@@ -17,7 +17,7 @@ class AnalysisService:
         self.demo_service = DemoService()
         self.risk_scorer = RiskScoringService()
 
-    def create_youtube_analysis(self, user_id, video_url):
+    def create_youtube_analysis(self, user_id, video_url, comment_limit=100):
         video_id = self.youtube_service.extract_video_id(video_url)
         if not video_id:
             return {'success': False, 'error': 'Invalid YouTube URL or Video ID.'}
@@ -25,9 +25,18 @@ class AnalysisService:
         api_key = current_app.config.get('YOUTUBE_API_KEY', '')
         is_demo = not api_key
 
+        video_info = None
+        comments = []
+        api_error = None
+
         if not is_demo:
-            video_info = self.youtube_service.fetch_video_info(video_id)
-            comments = self.youtube_service.fetch_comments(video_id)
+            try:
+                video_info = self.youtube_service.fetch_video_info(video_id)
+                comments = self.youtube_service.fetch_comments(video_id, max_results=comment_limit)
+            except YouTubeAPIError as e:
+                api_error = e.error_type
+                flash_message = str(e)
+                return {'success': False, 'error': flash_message, 'api_error': e.error_type}
         else:
             video_info = self.demo_service.get_video_info_by_id(video_id)
             comments = self.demo_service.get_comments()
@@ -36,7 +45,11 @@ class AnalysisService:
             video_info = {
                 'video_id': video_id,
                 'title': f'Video ({video_id})',
+                'description': '',
                 'channel': 'Unknown',
+                'published_at': None,
+                'view_count': 0,
+                'like_count': 0,
                 'comment_count': 0,
             }
 
@@ -49,9 +62,15 @@ class AnalysisService:
             analysis_id=analysis.id,
             video_id=video_info['video_id'],
             video_title=video_info.get('title', 'Unknown Title'),
+            video_description=video_info.get('description', ''),
             channel_name=video_info.get('channel', 'Unknown'),
+            published_at=video_info.get('published_at'),
+            view_count=video_info.get('view_count', 0),
+            like_count=video_info.get('like_count', 0),
             comment_count=len(comments),
+            comment_limit=comment_limit,
             is_demo=is_demo,
+            api_error=api_error,
         )
         db.session.add(yt_analysis)
         db.session.commit()
@@ -85,6 +104,7 @@ class AnalysisService:
             analysis_id=analysis_id,
             comment_text=text,
             author=comment.get('author', 'Unknown'),
+            published_at=comment.get('published_at'),
             spam_score=spam['score'],
             spam_explanation=spam['explanation'],
             toxicity_score=toxicity['score'],
@@ -116,6 +136,8 @@ class AnalysisService:
 
         comments = self.comment_repo.get_by_analysis_id(analysis_id)
         high_risk = self.comment_repo.get_high_risk_by_analysis(analysis_id)
+        top_spam = self.comment_repo.get_top_spam_by_analysis(analysis_id, limit=5)
+        top_toxic = self.comment_repo.get_top_toxic_by_analysis(analysis_id, limit=5)
         sentiment_dist = self.comment_repo.get_sentiment_distribution(analysis_id)
         risk_dist = self.comment_repo.get_risk_distribution(analysis_id)
         averages = self.comment_repo.get_average_scores_by_analysis(analysis_id)
@@ -125,11 +147,14 @@ class AnalysisService:
             'youtube': youtube,
             'comments': comments,
             'high_risk': high_risk,
+            'top_spam': top_spam,
+            'top_toxic': top_toxic,
             'sentiment_distribution': sentiment_dist,
             'risk_distribution': risk_dist,
             'averages': averages,
             'comment_count': len(comments),
             'is_demo': youtube.is_demo,
+            'api_error': youtube.api_error,
         }
 
     def get_recent_user_analyses(self, user_id, limit=10):
@@ -168,8 +193,10 @@ class AnalysisService:
             'avg_risk': round(total_risk / max(analysis_count, 1), 1),
         }
 
-    def get_all_user_analyses_with_data(self, user_id):
+    def get_all_user_analyses_with_data(self, user_id, limit=None):
         analyses = self.analysis_repo.get_by_user_id(user_id)
+        if limit:
+            analyses = analyses[:limit]
         results = []
         for a in analyses:
             yt = a.youtube_analysis

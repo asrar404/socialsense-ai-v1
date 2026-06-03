@@ -17,10 +17,16 @@
         <a href="{{ url_for('analysis.new') }}" class="btn btn-outline-primary">
             <i class="fas fa-plus"></i>
         </a>
-        <a href="{{ url_for('export.csv_download', analysis_id=data.analysis.id) }}"
-           class="btn btn-success">
-            <i class="fas fa-file-csv me-1"></i>Export CSV
-        </a>
+        <div class="btn-group">
+            <a href="{{ url_for('export.csv_download', analysis_id=data.analysis.id) }}"
+               class="btn btn-success">
+                <i class="fas fa-file-csv me-1"></i>CSV
+            </a>
+            <a href="{{ url_for('export.json_download', analysis_id=data.analysis.id) }}"
+               class="btn btn-info">
+                <i class="fas fa-file-code me-1"></i>JSON
+            </a>
+        </div>
     </div>
 </div>
 
@@ -37,8 +43,53 @@
     Scores are indicators, not definitive classifications.
 </div>
 
+{% if data.youtube.video_description or data.youtube.view_count > 0 %}
+<div class="card border-secondary mb-4">
+    <div class="card-header bg-dark">
+        <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Video Information</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                {% if data.youtube.video_description %}
+                <p class="small text-muted mb-0">{{ data.youtube.video_description|truncate(300) }}</p>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Views</div>
+                            <div class="fw-bold">{{ "{:,}".format(data.youtube.view_count) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Likes</div>
+                            <div class="fw-bold">{{ "{:,}".format(data.youtube.like_count) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Limit</div>
+                            <div class="fw-bold">{{ data.youtube.comment_limit }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Channel</div>
+                            <div class="fw-bold small">{{ data.youtube.channel_name }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-2 fw-bold text-info">{{ data.comment_count }}</div>
@@ -46,19 +97,27 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-2 fw-bold text-warning">{{ data.averages.avg_risk }}</div>
-                <div class="text-muted small">Average Risk Score</div>
+                <div class="text-muted small">Average Risk</div>
             </div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-2 fw-bold text-danger">{{ data.high_risk|length }}</div>
-                <div class="text-muted small">High-Risk Comments</div>
+                <div class="text-muted small">High-Risk</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <div class="fs-2 fw-bold text-primary">{{ data.averages.avg_spam }}</div>
+                <div class="text-muted small">Avg Spam</div>
             </div>
         </div>
     </div>
@@ -136,6 +195,47 @@
         </div>
     </div>
 </div>
+
+{% if data.top_spam %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-warning border-opacity-25 h-100">
+            <div class="card-header bg-dark text-warning">
+                <h6 class="mb-0"><i class="fas fa-triangle-exclamation me-2"></i>Top Spam Comments</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for c in data.top_spam %}
+                <div class="list-group-item bg-dark border-secondary">
+                    <div class="d-flex justify-content-between">
+                        <small class="text-truncate me-2">{{ c.comment_text|truncate(60) }}</small>
+                        <span class="badge bg-warning text-dark flex-shrink-0">{{ c.spam_score }}</span>
+                    </div>
+                    <small class="text-muted">by {{ c.author }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-danger border-opacity-25 h-100">
+            <div class="card-header bg-dark text-danger">
+                <h6 class="mb-0"><i class="fas fa-skull me-2"></i>Top Toxic Comments</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for c in data.top_toxic %}
+                <div class="list-group-item bg-dark border-secondary">
+                    <div class="d-flex justify-content-between">
+                        <small class="text-truncate me-2">{{ c.comment_text|truncate(60) }}</small>
+                        <span class="badge bg-danger flex-shrink-0">{{ c.toxicity_score }}</span>
+                    </div>
+                    <small class="text-muted">by {{ c.author }}</small>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if data.high_risk %}
 <div class="card border-danger border-opacity-25 mb-4">
@@ -238,7 +338,7 @@
             {% if data.averages.avg_ai_like > 30 %}
             <li>Possible AI-generated comments detected. Review for authenticity.</li>
             {% endif %}
-            <li>Export the full report as CSV for offline analysis and record-keeping.</li>
+            <li>Export the full report as CSV or JSON for offline analysis and record-keeping.</li>
         </ul>
     </div>
 </div>

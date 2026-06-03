@@ -19,6 +19,16 @@ class CommentResultRepository(BaseRepository):
             CommentResult.risk_score >= min_risk
         ).order_by(CommentResult.risk_score.desc()).all()
 
+    def get_top_spam_by_analysis(self, analysis_id, limit=5):
+        return self.model.query.filter(
+            CommentResult.analysis_id == analysis_id
+        ).order_by(CommentResult.spam_score.desc()).limit(limit).all()
+
+    def get_top_toxic_by_analysis(self, analysis_id, limit=5):
+        return self.model.query.filter(
+            CommentResult.analysis_id == analysis_id
+        ).order_by(CommentResult.toxicity_score.desc()).limit(limit).all()
+
     def get_sentiment_distribution(self, analysis_id):
         results = db.session.query(
             CommentResult.sentiment,
@@ -29,7 +39,6 @@ class CommentResultRepository(BaseRepository):
         return {r[0] or 'Unknown': r[1] for r in results}
 
     def get_average_scores_by_analysis(self, analysis_id):
-        from database import db
         result = db.session.query(
             db.func.avg(CommentResult.spam_score).label('avg_spam'),
             db.func.avg(CommentResult.toxicity_score).label('avg_toxicity'),

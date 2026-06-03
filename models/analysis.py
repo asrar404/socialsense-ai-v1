@@ -27,9 +27,15 @@ class YouTubeAnalysis(db.Model):
     analysis_id = db.Column(db.Integer, db.ForeignKey('analyses.id'), nullable=False, unique=True, index=True)
     video_id = db.Column(db.String(20), nullable=False, index=True)
     video_title = db.Column(db.String(500), nullable=True)
+    video_description = db.Column(db.Text, nullable=True)
     channel_name = db.Column(db.String(200), nullable=True)
+    published_at = db.Column(db.DateTime, nullable=True)
+    view_count = db.Column(db.Integer, default=0)
+    like_count = db.Column(db.Integer, default=0)
     comment_count = db.Column(db.Integer, default=0)
+    comment_limit = db.Column(db.Integer, default=100)
     is_demo = db.Column(db.Boolean, default=False)
+    api_error = db.Column(db.String(50), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     def __repr__(self):

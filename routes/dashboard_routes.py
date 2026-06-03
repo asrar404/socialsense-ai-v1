@@ -10,6 +10,6 @@ analysis_service = AnalysisService()
 @login_required
 def index():
     stats = analysis_service.get_dashboard_stats(current_user.id)
-    recent = analysis_service.get_recent_user_analyses(current_user.id, 10)
+    recent = analysis_service.get_all_user_analyses_with_data(current_user.id, limit=10)
 
     return render_template('dashboard/dashboard.html', stats=stats, analyses=recent)

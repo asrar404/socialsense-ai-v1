@@ -1,0 +1,62 @@
+{
+  "exported_at": "2026-06-03T10:41:24.050989+00:00",
+  "analysis_id": 1,
+  "analysis_type": "youtube",
+  "created_at": "2026-06-03T10:41:24.037343",
+  "video_metadata": {
+    "video_id": "dQw4w9WgXcQ",
+    "title": "Test Video",
+    "description": "A test video description.",
+    "channel": "Test Channel",
+    "published_at": "2024-01-15T00:00:00",
+    "view_count": 100000,
+    "like_count": 5000,
+    "comment_limit": 100,
+    "is_demo": true
+  },
+  "comment_count": 2,
+  "comments": [
+    {
+      "comment_text": "Great video! Very informative.",
+      "author": "User1",
+      "published_at": "2024-01-16T00:00:00",
+      "spam_score": 10.0,
+      "spam_explanation": null,
+      "toxicity_score": 5.0,
+      "toxicity_explanation": null,
+      "sentiment": "Positive",
+      "sentiment_score": 75.0,
+      "sentiment_explanation": null,
+      "duplicate_score": 0.0,
+      "duplicate_explanation": null,
+      "ai_like_score": 5.0,
+      "ai_like_explanation": null,
+      "bot_score": 0.0,
+      "bot_explanation": null,
+      "risk_score": 15.0,
+      "risk_level": "Low",
+      "risk_explanation": "Low risk"
+    },
+    {
+      "comment_text": "BUY NOW!!! Limited offer!!!",
+      "author": "Spammer",
+      "published_at": "2024-01-17T00:00:00",
+      "spam_score": 80.0,
+      "spam_explanation": null,
+      "toxicity_score": 5.0,
+      "toxicity_explanation": null,
+      "sentiment": "Neutral",
+      "sentiment_score": 50.0,
+      "sentiment_explanation": null,
+      "duplicate_score": 0.0,
+      "duplicate_explanation": null,
+      "ai_like_score": 5.0,
+      "ai_like_explanation": null,
+      "bot_score": 0.0,
+      "bot_explanation": null,
+      "risk_score": 70.0,
+      "risk_level": "High",
+      "risk_explanation": "High risk"
+    }
+  ]
+}

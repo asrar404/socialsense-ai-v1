@@ -15,7 +15,13 @@ def new():
             flash('Please enter a YouTube URL or Video ID.', 'danger')
             return render_template('analysis/new.html')
 
-        result = analysis_service.create_youtube_analysis(current_user.id, video_url)
+        comment_limit = request.form.get('comment_limit', '100', type=int)
+        if comment_limit not in (100, 500, 1000):
+            comment_limit = 100
+
+        result = analysis_service.create_youtube_analysis(
+            current_user.id, video_url, comment_limit=comment_limit
+        )
 
         if not result['success']:
             flash(result['error'], 'danger')

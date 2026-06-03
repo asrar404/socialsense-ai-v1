@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 from app import create_app
 from database import db as _db
 from models.user import User
@@ -58,8 +59,13 @@ def analysis(app, db, user):
         analysis_id=a.id,
         video_id='dQw4w9WgXcQ',
         video_title='Test Video',
+        video_description='A test video description.',
         channel_name='Test Channel',
+        published_at=datetime(2024, 1, 15, tzinfo=timezone.utc),
+        view_count=100000,
+        like_count=5000,
         comment_count=2,
+        comment_limit=100,
         is_demo=True,
     )
     db.session.add(yt)
@@ -72,6 +78,7 @@ def analysis(app, db, user):
             analysis_id=a.id,
             comment_text=text,
             author=author,
+            published_at=datetime(2024, 1, 16, tzinfo=timezone.utc) if i == 0 else datetime(2024, 1, 17, tzinfo=timezone.utc),
             spam_score=10.0 if i == 0 else 80.0,
             toxicity_score=5.0,
             sentiment='Positive' if i == 0 else 'Neutral',

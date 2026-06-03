@@ -39,6 +39,30 @@
                         </div>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label">Comment Limit</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="comment_limit"
+                                       id="limit100" value="100" checked>
+                                <label class="form-check-label" for="limit100">100</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="comment_limit"
+                                       id="limit500" value="500">
+                                <label class="form-check-label" for="limit500">500</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="comment_limit"
+                                       id="limit1000" value="1000">
+                                <label class="form-check-label" for="limit1000">1000</label>
+                            </div>
+                        </div>
+                        <div class="form-text">
+                            Maximum number of comments to fetch. Actual count depends on availability.
+                        </div>
+                    </div>
+
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg" id="analyzeBtn">
                             <i class="fas fa-search me-2"></i>Analyze Comments
@@ -53,10 +77,11 @@
                 <h5><i class="fas fa-info-circle me-2 text-info"></i>How It Works</h5>
                 <ol class="mb-0 text-muted">
                     <li>Paste a YouTube video URL or ID above</li>
+                    <li>Choose how many comments to analyze (100/500/1000)</li>
                     <li>Our engine fetches comments (real or demo data)</li>
                     <li>Each comment is analyzed for spam, toxicity, sentiment, and more</li>
                     <li>Results are presented with risk scores and explanations</li>
-                    <li>Export results as CSV for further analysis</li>
+                    <li>Export results as CSV or JSON for further analysis</li>
                 </ol>
             </div>
         </div>

@@ -16,6 +16,9 @@ def create_app(config_name=None):
         app.config.from_object('config.DevelopmentConfig')
 
     app.config['YOUTUBE_API_KEY'] = os.environ.get('YOUTUBE_API_KEY', '')
+    app.config['REDDIT_CLIENT_ID'] = os.environ.get('REDDIT_CLIENT_ID', '')
+    app.config['REDDIT_CLIENT_SECRET'] = os.environ.get('REDDIT_CLIENT_SECRET', '')
+    app.config['REDDIT_USER_AGENT'] = os.environ.get('REDDIT_USER_AGENT', 'SocialSenseAI/1.0')
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reports')
 
     from database import init_db
@@ -46,7 +49,8 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_globals():
         is_demo = not app.config.get('YOUTUBE_API_KEY', '')
-        return {'is_demo_mode': is_demo}
+        has_reddit = bool(app.config.get('REDDIT_CLIENT_ID', '') and app.config.get('REDDIT_CLIENT_SECRET', ''))
+        return {'is_demo_mode': is_demo, 'has_reddit_creds': has_reddit}
 
     @app.route('/')
     def index():

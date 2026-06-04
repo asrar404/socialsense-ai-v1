@@ -7,11 +7,19 @@
         <h3 class="fw-bold mb-1">
             <i class="fas fa-file-alt me-2 text-primary"></i>Analysis Results
         </h3>
+        {% if data.analysis.analysis_type == 'reddit' and data.reddit %}
+        <small class="text-muted">
+            <i class="fab fa-reddit text-orange me-1"></i>
+            {{ data.reddit.post_title }} &mdash;
+            <span class="text-muted">r/{{ data.reddit.subreddit }}</span>
+        </small>
+        {% elif data.youtube %}
         <small class="text-muted">
             <i class="fab fa-youtube text-danger me-1"></i>
             {{ data.youtube.video_title }} &mdash;
             <span class="text-muted">{{ data.youtube.channel_name }}</span>
         </small>
+        {% endif %}
     </div>
     <div class="d-flex gap-2">
         <a href="{{ url_for('analysis.new') }}" class="btn btn-outline-primary">
@@ -43,7 +51,56 @@
     Scores are indicators, not definitive classifications.
 </div>
 
-{% if data.youtube.video_description or data.youtube.view_count > 0 %}
+{% if data.analysis.analysis_type == 'reddit' and data.reddit %}
+<div class="card border-secondary mb-4">
+    <div class="card-header bg-dark">
+        <h6 class="mb-0"><i class="fab fa-reddit text-orange me-2"></i>Reddit Post Information</h6>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                {% if data.reddit.post_body %}
+                <p class="small text-muted mb-0">{{ data.reddit.post_body|truncate(300) }}</p>
+                {% endif %}
+                {% if data.reddit.permalink %}
+                <a href="https://reddit.com{{ data.reddit.permalink }}" target="_blank"
+                   class="btn btn-sm btn-outline-info mt-2">
+                    <i class="fas fa-external-link-alt me-1"></i>View on Reddit
+                </a>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="row g-2 text-center">
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Score</div>
+                            <div class="fw-bold">{{ "{:,}".format(data.reddit.post_score) }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Upvote Ratio</div>
+                            <div class="fw-bold">{{ data.reddit.upvote_ratio }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Limit</div>
+                            <div class="fw-bold">{{ data.reddit.comment_limit }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="bg-dark rounded p-2">
+                            <div class="small text-muted">Subreddit</div>
+                            <div class="fw-bold small">r/{{ data.reddit.subreddit }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% elif data.youtube and (data.youtube.video_description or data.youtube.view_count > 0) %}
 <div class="card border-secondary mb-4">
     <div class="card-header bg-dark">
         <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>Video Information</h6>
@@ -316,7 +373,7 @@
         {% else %}
         <div class="text-center py-4 text-muted">
             <i class="fas fa-inbox fa-3x mb-2"></i>
-            <p>No comments found for this video.</p>
+            <p>No comments found for this {{ 'post' if data.analysis.analysis_type == 'reddit' else 'video' }}.</p>
         </div>
         {% endif %}
     </div>
@@ -327,7 +384,7 @@
         <h6><i class="fas fa-lightbulb me-2 text-warning"></i>Recommendations</h6>
         <ul class="small text-muted mb-0">
             {% if data.averages.avg_risk > 50 %}
-            <li>This video has a high average risk score. Review suspicious comments carefully.</li>
+            <li>This {{ 'post' if data.analysis.analysis_type == 'reddit' else 'video' }} has a high average risk score. Review suspicious comments carefully.</li>
             {% endif %}
             {% if data.averages.avg_spam > 30 %}
             <li>Significant spam activity detected. Consider moderating comments.</li>

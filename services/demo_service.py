@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, timezone
+from services.reddit_service import RedditDemoService
 
 
 class DemoService:
@@ -83,3 +84,12 @@ class DemoService:
 
     def get_comments(self):
         return self.DEMO_COMMENTS
+
+    def get_reddit_subreddit_info(self, subreddit_name):
+        return RedditDemoService().get_subreddit_info(subreddit_name)
+
+    def get_reddit_post_info(self, post_id, subreddit=None):
+        return RedditDemoService().get_post_info(post_id, subreddit)
+
+    def get_reddit_comments(self):
+        return RedditDemoService().get_comments()

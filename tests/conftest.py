@@ -4,6 +4,7 @@ from app import create_app
 from database import db as _db
 from models.user import User
 from models.analysis import Analysis, YouTubeAnalysis
+from models.reddit_analysis import RedditAnalysis
 from models.comment_result import CommentResult
 from werkzeug.security import generate_password_hash
 
@@ -79,6 +80,55 @@ def analysis(app, db, user):
             comment_text=text,
             author=author,
             published_at=datetime(2024, 1, 16, tzinfo=timezone.utc) if i == 0 else datetime(2024, 1, 17, tzinfo=timezone.utc),
+            spam_score=10.0 if i == 0 else 80.0,
+            toxicity_score=5.0,
+            sentiment='Positive' if i == 0 else 'Neutral',
+            sentiment_score=75.0 if i == 0 else 50.0,
+            duplicate_score=0.0,
+            ai_like_score=5.0,
+            bot_score=0.0,
+            risk_score=15.0 if i == 0 else 70.0,
+            risk_level='Low' if i == 0 else 'High',
+            risk_explanation='Low risk' if i == 0 else 'High risk',
+        )
+        db.session.add(c)
+
+    db.session.commit()
+    return a
+
+
+@pytest.fixture
+def reddit_analysis(app, db, user):
+    a = Analysis(user_id=user.id, analysis_type='reddit')
+    db.session.add(a)
+    db.session.commit()
+
+    ra = RedditAnalysis(
+        analysis_id=a.id,
+        post_id='abc123',
+        subreddit='technology',
+        post_title='Test Reddit Post',
+        post_body='Test post body content.',
+        post_author='RedditUser',
+        post_score=5000,
+        upvote_ratio=0.85,
+        comment_count=2,
+        comment_limit=100,
+        permalink='/r/technology/comments/abc123/',
+        created_utc=datetime(2024, 6, 15, tzinfo=timezone.utc),
+        is_demo=True,
+    )
+    db.session.add(ra)
+
+    for i, (text, author) in enumerate([
+        ('Great post! Very informative.', 'User1'),
+        ('BUY NOW!!! Limited offer!!!', 'Spammer'),
+    ]):
+        c = CommentResult(
+            analysis_id=a.id,
+            comment_text=text,
+            author=author,
+            published_at=datetime(2024, 6, 16, tzinfo=timezone.utc) if i == 0 else datetime(2024, 6, 17, tzinfo=timezone.utc),
             spam_score=10.0 if i == 0 else 80.0,
             toxicity_score=5.0,
             sentiment='Positive' if i == 0 else 'Neutral',

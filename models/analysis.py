@@ -13,6 +13,7 @@ class Analysis(db.Model):
                            onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     youtube_analysis = db.relationship('YouTubeAnalysis', backref='analysis', uselist=False, cascade='all, delete-orphan')
+    reddit_analysis = db.relationship('RedditAnalysis', backref='analysis', uselist=False, cascade='all, delete-orphan')
     comment_results = db.relationship('CommentResult', backref='analysis', lazy='dynamic', cascade='all, delete-orphan')
     report_exports = db.relationship('ReportExport', backref='analysis', lazy='dynamic', cascade='all, delete-orphan')
 

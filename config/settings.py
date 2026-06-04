@@ -15,6 +15,9 @@ class Config:
     REMEMBER_COOKIE_DURATION = 86400 * 30
 
     YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY', '')
+    REDDIT_CLIENT_ID = os.environ.get('REDDIT_CLIENT_ID', '')
+    REDDIT_CLIENT_SECRET = os.environ.get('REDDIT_CLIENT_SECRET', '')
+    REDDIT_USER_AGENT = os.environ.get('REDDIT_USER_AGENT', 'SocialSenseAI/1.0')
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
 

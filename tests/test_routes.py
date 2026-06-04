@@ -18,7 +18,7 @@ def test_dashboard_page(logged_in_client):
 def test_new_analysis_page(logged_in_client):
     response = logged_in_client.get('/analysis/new')
     assert response.status_code == 200
-    assert b'Analyze YouTube' in response.data
+    assert b'New Analysis' in response.data
 
 
 def test_new_analysis_page_has_limit_options(logged_in_client):

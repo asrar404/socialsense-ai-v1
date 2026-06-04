@@ -113,3 +113,47 @@ def test_analysis_youtube_relationship(app, db, analysis):
     assert analysis.youtube_analysis.video_id == 'dQw4w9WgXcQ'
     assert analysis.youtube_analysis.view_count == 100000
     assert analysis.youtube_analysis.comment_limit == 100
+
+
+def test_create_reddit_analysis(app, db, user):
+    from models.analysis import Analysis
+    from models.reddit_analysis import RedditAnalysis
+
+    analysis = Analysis(user_id=user.id, analysis_type='reddit')
+    db.session.add(analysis)
+    db.session.commit()
+
+    ra = RedditAnalysis(
+        analysis_id=analysis.id,
+        post_id='abc123',
+        subreddit='technology',
+        post_title='Test Post',
+        post_body='Test body',
+        post_author='TestAuthor',
+        post_score=1000,
+        upvote_ratio=0.9,
+        comment_limit=100,
+        is_demo=True,
+    )
+    db.session.add(ra)
+    db.session.commit()
+
+    assert ra.id is not None
+    assert ra.post_id == 'abc123'
+    assert ra.subreddit == 'technology'
+    assert ra.post_score == 1000
+    assert ra.upvote_ratio == 0.9
+    assert ra.comment_limit == 100
+
+
+def test_analysis_reddit_relationship(app, db, reddit_analysis):
+    assert reddit_analysis.reddit_analysis is not None
+    assert reddit_analysis.reddit_analysis.post_id == 'abc123'
+    assert reddit_analysis.reddit_analysis.subreddit == 'technology'
+    assert reddit_analysis.reddit_analysis.post_score == 5000
+
+def test_reddit_analysis_repr(app, db, reddit_analysis):
+    ra = reddit_analysis.reddit_analysis
+    assert 'RedditAnalysis' in repr(ra)
+    assert 'technology' in repr(ra)
+    assert 'abc123' in repr(ra)

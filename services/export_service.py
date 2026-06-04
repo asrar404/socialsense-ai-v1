@@ -18,24 +18,36 @@ class ExportService:
         self.export_repo = ReportExportRepository()
 
     def generate_csv(self, analysis_id, user_id):
-        analysis = self.analysis_repo.get_user_analysis_with_youtube(analysis_id, user_id)
+        analysis = self.analysis_repo.get_user_analysis_with_reddit(analysis_id, user_id)
         if not analysis:
             return None
 
         comments = self.comment_repo.get_by_analysis_id(analysis_id)
         yt = analysis.youtube_analysis
+        reddit = analysis.reddit_analysis
 
         output = io.StringIO()
         writer = csv.writer(output)
 
-        writer.writerow(['# Video Metadata'])
-        writer.writerow(['Video ID', yt.video_id if yt else ''])
-        writer.writerow(['Title', yt.video_title if yt else ''])
-        writer.writerow(['Channel', yt.channel_name if yt else ''])
-        writer.writerow(['Views', yt.view_count if yt else 0])
-        writer.writerow(['Likes', yt.like_count if yt else 0])
-        writer.writerow(['Comment Limit', yt.comment_limit if yt else 100])
-        writer.writerow(['Demo Mode', 'Yes' if (yt and yt.is_demo) else 'No'])
+        if analysis.analysis_type == 'reddit' and reddit:
+            writer.writerow(['# Reddit Post Metadata'])
+            writer.writerow(['Post ID', reddit.post_id])
+            writer.writerow(['Subreddit', reddit.subreddit or ''])
+            writer.writerow(['Title', reddit.post_title or ''])
+            writer.writerow(['Author', reddit.post_author or ''])
+            writer.writerow(['Score', reddit.post_score or 0])
+            writer.writerow(['Upvote Ratio', reddit.upvote_ratio or 0.0])
+            writer.writerow(['Comment Limit', reddit.comment_limit or 100])
+            writer.writerow(['Demo Mode', 'Yes' if reddit.is_demo else 'No'])
+        else:
+            writer.writerow(['# Video Metadata'])
+            writer.writerow(['Video ID', yt.video_id if yt else ''])
+            writer.writerow(['Title', yt.video_title if yt else ''])
+            writer.writerow(['Channel', yt.channel_name if yt else ''])
+            writer.writerow(['Views', yt.view_count if yt else 0])
+            writer.writerow(['Likes', yt.like_count if yt else 0])
+            writer.writerow(['Comment Limit', yt.comment_limit if yt else 100])
+            writer.writerow(['Demo Mode', 'Yes' if (yt and yt.is_demo) else 'No'])
         writer.writerow([])
 
         writer.writerow([
@@ -109,16 +121,33 @@ class ExportService:
         }
 
     def generate_json(self, analysis_id, user_id):
-        analysis = self.analysis_repo.get_user_analysis_with_youtube(analysis_id, user_id)
+        analysis = self.analysis_repo.get_user_analysis_with_reddit(analysis_id, user_id)
         if not analysis:
             return None
 
         comments = self.comment_repo.get_by_analysis_id(analysis_id)
         yt = analysis.youtube_analysis
+        reddit = analysis.reddit_analysis
 
-        video_metadata = {}
-        if yt:
-            video_metadata = {
+        metadata = {}
+        if analysis.analysis_type == 'reddit' and reddit:
+            metadata = {
+                'platform': 'reddit',
+                'post_id': reddit.post_id,
+                'subreddit': reddit.subreddit,
+                'title': reddit.post_title,
+                'body': reddit.post_body,
+                'author': reddit.post_author,
+                'score': reddit.post_score,
+                'upvote_ratio': reddit.upvote_ratio,
+                'comment_limit': reddit.comment_limit,
+                'permalink': reddit.permalink,
+                'created_utc': reddit.created_utc.isoformat() if reddit.created_utc else None,
+                'is_demo': reddit.is_demo,
+            }
+        elif yt:
+            metadata = {
+                'platform': 'youtube',
                 'video_id': yt.video_id,
                 'title': yt.video_title,
                 'description': yt.video_description,
@@ -159,7 +188,7 @@ class ExportService:
             'analysis_id': analysis_id,
             'analysis_type': analysis.analysis_type,
             'created_at': analysis.created_at.isoformat() if analysis.created_at else None,
-            'video_metadata': video_metadata,
+            'metadata': metadata,
             'comment_count': len(comments_data),
             'comments': comments_data,
         }

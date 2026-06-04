@@ -169,3 +169,65 @@ def test_analysis_service_invalid_url(app, db, user):
     result = service.create_youtube_analysis(user.id, 'not-a-valid-url')
     assert result['success'] is False
     assert 'Invalid' in result['error']
+
+
+def test_reddit_service_extract_post_id():
+    from services.reddit_service import RedditService
+
+    assert RedditService.extract_post_id('abc123def') == 'abc123def'
+    assert RedditService.extract_post_id('https://www.reddit.com/r/technology/comments/abc123/') == 'abc123'
+    assert RedditService.extract_post_id('https://redd.it/abc123') == 'abc123'
+    assert RedditService.extract_post_id('') is None
+    assert RedditService.extract_post_id('ab') is None
+
+
+def test_reddit_service_extract_subreddit():
+    from services.reddit_service import RedditService
+
+    assert RedditService.extract_subreddit_name('technology') == 'technology'
+    assert RedditService.extract_subreddit_name('https://www.reddit.com/r/technology/') == 'technology'
+    assert RedditService.extract_subreddit_name('') is None
+
+
+def test_reddit_demo_service():
+    from services.reddit_service import RedditDemoService
+
+    demo = RedditDemoService()
+
+    info = demo.get_post_info('test123', 'AskReddit')
+    assert info['post_id'] == 'test123'
+    assert info['subreddit'] == 'AskReddit'
+    assert info['is_demo'] is True
+
+    comments = demo.get_comments()
+    assert len(comments) > 10
+    assert 'text' in comments[0]
+    assert 'score' in comments[0]
+
+
+def test_reddit_analysis_service_creates(app, db, user):
+    from services.analysis_service import AnalysisService
+    service = AnalysisService()
+
+    result = service.create_reddit_analysis(user.id, 'abc123', subreddit='technology', comment_limit=100)
+    assert result['success'] is True
+    assert result['is_demo'] is True
+    assert result['comment_count'] > 0
+
+    data = service.get_analysis_results(result['analysis_id'], user.id)
+    assert data is not None
+    assert data['reddit'] is not None
+    assert data['reddit'].post_id == 'abc123'
+    assert data['reddit'].subreddit == 'technology'
+    assert data['comment_count'] > 0
+
+
+def test_reddit_analysis_with_different_limits(app, db, user):
+    from services.analysis_service import AnalysisService
+    service = AnalysisService()
+
+    for limit in (100, 500, 1000):
+        result = service.create_reddit_analysis(user.id, 'abc123', subreddit='test', comment_limit=limit)
+        assert result['success'] is True
+        data = service.get_analysis_results(result['analysis_id'], user.id)
+        assert data['reddit'].comment_limit == limit

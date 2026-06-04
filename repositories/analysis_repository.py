@@ -12,6 +12,9 @@ class AnalysisRepository(BaseRepository):
     def get_user_analysis_with_youtube(self, analysis_id, user_id):
         return self.model.query.filter_by(id=analysis_id, user_id=user_id).first()
 
+    def get_user_analysis_with_reddit(self, analysis_id, user_id):
+        return self.model.query.filter_by(id=analysis_id, user_id=user_id).first()
+
     def count_by_user(self, user_id):
         return self.model.query.filter_by(user_id=user_id).count()
 

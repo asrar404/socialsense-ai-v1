@@ -1,37 +1,73 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from services.analysis_service import AnalysisService
+from services.reddit_service import RedditService
 
 analysis_bp = Blueprint('analysis', __name__, url_prefix='/analysis')
 analysis_service = AnalysisService()
+reddit_service = RedditService()
 
 
 @analysis_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new():
     if request.method == 'POST':
-        video_url = request.form.get('video_url', '').strip()
-        if not video_url:
-            flash('Please enter a YouTube URL or Video ID.', 'danger')
-            return render_template('analysis/new.html')
+        platform = request.form.get('platform', 'youtube')
 
-        comment_limit = request.form.get('comment_limit', '100', type=int)
-        if comment_limit not in (100, 500, 1000):
-            comment_limit = 100
+        if platform == 'reddit':
+            reddit_input = request.form.get('reddit_input', '').strip()
+            if not reddit_input:
+                flash('Please enter a Reddit post URL, post ID, or subreddit name.', 'danger')
+                return render_template('analysis/new.html')
 
-        result = analysis_service.create_youtube_analysis(
-            current_user.id, video_url, comment_limit=comment_limit
-        )
+            comment_limit = request.form.get('comment_limit', '100', type=int)
+            if comment_limit not in (100, 500, 1000):
+                comment_limit = 100
 
-        if not result['success']:
-            flash(result['error'], 'danger')
-            return render_template('analysis/new.html')
+            post_id = reddit_service.extract_post_id(reddit_input)
+            if not post_id:
+                flash('Invalid Reddit post URL or ID.', 'danger')
+                return render_template('analysis/new.html')
 
-        flash(f'Analysis complete! Processed {result["comment_count"]} comments.', 'success')
-        return redirect(url_for('analysis.result', analysis_id=result['analysis_id']))
+            subreddit = reddit_service.extract_post_info(reddit_input)
+            subreddit_name = subreddit['subreddit'] if subreddit else None
 
-    is_demo = not __import__('flask', fromlist=['current_app']).current_app.config.get('YOUTUBE_API_KEY', '')
-    return render_template('analysis/new.html', is_demo=is_demo)
+            result = analysis_service.create_reddit_analysis(
+                current_user.id, post_id, subreddit=subreddit_name,
+                input_type='post', comment_limit=comment_limit
+            )
+
+            if not result['success']:
+                flash(result['error'], 'danger')
+                return render_template('analysis/new.html')
+
+            flash(f'Reddit analysis complete! Processed {result["comment_count"]} comments.', 'success')
+            return redirect(url_for('analysis.result', analysis_id=result['analysis_id']))
+        else:
+            video_url = request.form.get('video_url', '').strip()
+            if not video_url:
+                flash('Please enter a YouTube URL or Video ID.', 'danger')
+                return render_template('analysis/new.html')
+
+            comment_limit = request.form.get('comment_limit', '100', type=int)
+            if comment_limit not in (100, 500, 1000):
+                comment_limit = 100
+
+            result = analysis_service.create_youtube_analysis(
+                current_user.id, video_url, comment_limit=comment_limit
+            )
+
+            if not result['success']:
+                flash(result['error'], 'danger')
+                return render_template('analysis/new.html')
+
+            flash(f'Analysis complete! Processed {result["comment_count"]} comments.', 'success')
+            return redirect(url_for('analysis.result', analysis_id=result['analysis_id']))
+
+    from flask import current_app
+    yt_demo = not current_app.config.get('YOUTUBE_API_KEY', '')
+    has_reddit = bool(current_app.config.get('REDDIT_CLIENT_ID', '') and current_app.config.get('REDDIT_CLIENT_SECRET', ''))
+    return render_template('analysis/new.html', is_demo=yt_demo, has_reddit_creds=has_reddit)
 
 
 @analysis_bp.route('/<int:analysis_id>')

@@ -13,13 +13,16 @@ class CommentResult(db.Model):
 
     spam_score = db.Column(db.Float, default=0.0)
     spam_explanation = db.Column(db.Text, nullable=True)
+    spam_confidence = db.Column(db.Float, nullable=True)
 
     toxicity_score = db.Column(db.Float, default=0.0)
     toxicity_explanation = db.Column(db.Text, nullable=True)
+    toxicity_confidence = db.Column(db.Float, nullable=True)
 
     sentiment = db.Column(db.String(20), nullable=True)
     sentiment_score = db.Column(db.Float, default=0.0)
     sentiment_explanation = db.Column(db.Text, nullable=True)
+    sentiment_confidence = db.Column(db.Float, nullable=True)
 
     duplicate_score = db.Column(db.Float, default=0.0)
     duplicate_explanation = db.Column(db.Text, nullable=True)
@@ -29,10 +32,12 @@ class CommentResult(db.Model):
 
     bot_score = db.Column(db.Float, default=0.0)
     bot_explanation = db.Column(db.Text, nullable=True)
+    bot_confidence = db.Column(db.Float, nullable=True)
 
     risk_score = db.Column(db.Float, default=0.0)
     risk_level = db.Column(db.String(20), default='Low')
     risk_explanation = db.Column(db.Text, nullable=True)
+    recommendation = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 

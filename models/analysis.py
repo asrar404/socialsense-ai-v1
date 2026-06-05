@@ -17,6 +17,13 @@ class Analysis(db.Model):
     comment_results = db.relationship('CommentResult', backref='analysis', lazy='dynamic', cascade='all, delete-orphan')
     report_exports = db.relationship('ReportExport', backref='analysis', lazy='dynamic', cascade='all, delete-orphan')
 
+    average_sentiment = db.Column(db.Float, nullable=True)
+    average_toxicity = db.Column(db.Float, nullable=True)
+    average_spam = db.Column(db.Float, nullable=True)
+    average_bot_score = db.Column(db.Float, nullable=True)
+    critical_comments_count = db.Column(db.Integer, default=0)
+    analysis_summary = db.Column(db.Text, nullable=True)
+
     def __repr__(self):
         return f'<Analysis {self.id} ({self.analysis_type})>'
 

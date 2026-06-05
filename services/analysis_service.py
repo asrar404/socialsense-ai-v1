@@ -10,6 +10,11 @@ from services.youtube_service import YouTubeService, YouTubeAPIError
 from services.reddit_service import RedditService, RedditAPIError, RedditDemoService
 from services.demo_service import DemoService
 from services.risk_scoring_service import RiskScoringService
+from services.sentiment_service import SentimentService
+from services.toxicity_service import ToxicityService
+from services.spam_service import SpamService
+from services.bot_detection_service import BotDetectionService
+from services.risk_engine import RiskEngine
 
 
 class AnalysisService:
@@ -83,7 +88,9 @@ class AnalysisService:
 
         all_texts = [c['text'] for c in comments]
         for comment in comments:
-            self._analyze_and_store_comment(analysis.id, comment, all_texts)
+            self._analyze_and_store_comment_v2(analysis.id, comment, all_texts)
+
+        self._generate_analysis_summary(analysis.id)
 
         return {
             'success': True,
@@ -131,7 +138,9 @@ class AnalysisService:
 
         all_texts = [c['text'] for c in comments]
         for comment in comments:
-            self._analyze_and_store_comment(analysis.id, comment, all_texts)
+            self._analyze_and_store_comment_v2(analysis.id, comment, all_texts)
+
+        self._generate_analysis_summary(analysis.id)
 
         return {
             'success': True,
@@ -139,6 +148,130 @@ class AnalysisService:
             'is_demo': is_demo,
             'comment_count': len(comments),
         }
+
+    def _analyze_and_store_comment_v2(self, analysis_id, comment, all_texts):
+        text = comment['text']
+
+        sentiment = SentimentService.analyze(text)
+        toxicity = ToxicityService.analyze(text)
+        spam = SpamService.analyze(text, all_texts)
+        bot = BotDetectionService.analyze(text, all_texts)
+        duplicate = self.risk_scorer.calculate_duplicate_score(text, all_texts)
+        risk = RiskEngine.calculate(sentiment, toxicity, spam, bot, duplicate['score'])
+
+        result = CommentResult(
+            analysis_id=analysis_id,
+            comment_text=text,
+            author=comment.get('author', 'Unknown'),
+            published_at=comment.get('published_at'),
+            spam_score=spam['spam_score'],
+            spam_explanation=spam['explanation'],
+            spam_confidence=spam['confidence'],
+            toxicity_score=toxicity['toxicity_score'],
+            toxicity_explanation=toxicity['explanation'],
+            toxicity_confidence=toxicity['confidence'],
+            sentiment=sentiment['label'],
+            sentiment_score=sentiment['score'],
+            sentiment_explanation=sentiment['explanation'],
+            sentiment_confidence=sentiment['confidence'],
+            duplicate_score=duplicate['score'],
+            duplicate_explanation=duplicate['explanation'],
+            ai_like_score=bot['bot_score'],
+            ai_like_explanation=bot['explanation'],
+            bot_score=bot['bot_score'],
+            bot_explanation=bot['explanation'],
+            bot_confidence=bot['confidence'],
+            risk_score=risk['final_risk_score'],
+            risk_level=risk['final_risk_label'],
+            risk_explanation='; '.join(risk['reasons']),
+            recommendation=risk['recommendation'],
+        )
+        db.session.add(result)
+        db.session.commit()
+
+    def _generate_analysis_summary(self, analysis_id):
+        comments = self.comment_repo.get_by_analysis_id(analysis_id)
+        if not comments:
+            return
+
+        total = len(comments)
+        sentiments = {'Positive': 0, 'Neutral': 0, 'Negative': 0}
+        toxicity_levels = {'Low': 0, 'Medium': 0, 'High': 0, 'Critical': 0}
+        spam_levels = {'Low': 0, 'Medium': 0, 'High': 0, 'Critical': 0}
+        risk_levels = {'Low': 0, 'Medium': 0, 'High': 0, 'Critical': 0}
+        total_sentiment = 0.0
+        total_toxicity = 0.0
+        total_spam = 0.0
+        total_bot = 0.0
+        critical_count = 0
+        concerns = set()
+
+        for c in comments:
+            sentiments[c.sentiment or 'Neutral'] = sentiments.get(c.sentiment, 0) + 1
+            total_sentiment += c.sentiment_score or 50.0
+            total_toxicity += c.toxicity_score or 0.0
+            total_spam += c.spam_score or 0.0
+            total_bot += c.bot_score or 0.0
+
+            if c.risk_level == 'Critical':
+                critical_count += 1
+            if c.risk_level:
+                risk_levels[c.risk_level] = risk_levels.get(c.risk_level, 0) + 1
+
+            if c.toxicity_score and c.toxicity_score >= 40:
+                concerns.add('Toxic language')
+            if c.spam_score and c.spam_score >= 40:
+                concerns.add('Spam content')
+            if c.bot_score and c.bot_score >= 40:
+                concerns.add('Automated content')
+            if c.duplicate_score and c.duplicate_score >= 40:
+                concerns.add('Duplicate posting')
+
+        avg_sentiment = round(total_sentiment / total, 1) if total else 50.0
+        avg_toxicity = round(total_toxicity / total, 1) if total else 0.0
+        avg_spam = round(total_spam / total, 1) if total else 0.0
+        avg_bot = round(total_bot / total, 1) if total else 0.0
+
+        sentiment_pct = {
+            k: round(v / total * 100, 1) if total else 0.0
+            for k, v in sentiments.items()
+        }
+
+        overall_risk = 'Low'
+        avg_risk_score = (avg_toxicity * 0.35 + avg_spam * 0.25 + avg_bot * 0.20 + abs(avg_sentiment - 50) * 0.10)
+        if avg_risk_score > 25:
+            overall_risk = 'Medium'
+        if avg_risk_score > 50:
+            overall_risk = 'High'
+        if avg_risk_score > 75:
+            overall_risk = 'Critical'
+
+        summary_parts = [
+            f"Comments analyzed: {total}",
+            f"Positive: {sentiment_pct.get('Positive', 0)}%",
+            f"Neutral: {sentiment_pct.get('Neutral', 0)}%",
+            f"Negative: {sentiment_pct.get('Negative', 0)}%",
+            f"Average Toxicity: {avg_toxicity}%",
+            f"High Risk Comments: {critical_count}",
+            f"Overall Community Health: {overall_risk} Risk",
+        ]
+
+        if concerns:
+            summary_parts.append("Key Concerns:")
+            for concern in sorted(concerns):
+                summary_parts.append(f"- {concern}")
+
+        summary = '\n'.join(summary_parts)
+
+        analysis = self.analysis_repo.get_by_id(analysis_id)
+        if analysis:
+            analysis.average_sentiment = avg_sentiment
+            analysis.average_toxicity = avg_toxicity
+            analysis.average_spam = avg_spam
+            analysis.average_bot_score = avg_bot
+            analysis.critical_comments_count = critical_count
+            analysis.analysis_summary = summary
+            db.session.commit()
 
     def _analyze_and_store_comment(self, analysis_id, comment, all_texts):
         text = comment['text']
@@ -236,19 +369,32 @@ class AnalysisService:
         total_sentiment = 0
         total_ai = 0
         total_risk = 0
+        total_bot = 0
         analysis_count = 0
+        critical_count = 0
 
         for analysis in analyses:
             averages = self.comment_repo.get_average_scores_by_analysis(analysis.id)
             comment_count = self.comment_repo.count_by_analysis(analysis.id)
             total_comments += comment_count
+            critical_count += analysis.critical_comments_count or 0
             if comment_count > 0:
                 total_spam += averages['avg_spam']
                 total_toxicity += averages['avg_toxicity']
                 total_sentiment += averages['avg_sentiment']
                 total_ai += averages['avg_ai_like']
                 total_risk += averages['avg_risk']
+                total_bot += averages.get('avg_bot', 0)
                 analysis_count += 1
+
+        community_health = 'Low'
+        avg_all_risk = total_risk / max(analysis_count, 1)
+        if avg_all_risk > 25:
+            community_health = 'Medium'
+        if avg_all_risk > 50:
+            community_health = 'High'
+        if avg_all_risk > 75:
+            community_health = 'Critical'
 
         return {
             'total_analyses': total_analyses,
@@ -257,7 +403,10 @@ class AnalysisService:
             'avg_toxicity': round(total_toxicity / max(analysis_count, 1), 1),
             'avg_sentiment': round(total_sentiment / max(analysis_count, 1), 1),
             'avg_ai_like': round(total_ai / max(analysis_count, 1), 1),
+            'avg_bot': round(total_bot / max(analysis_count, 1), 1),
             'avg_risk': round(total_risk / max(analysis_count, 1), 1),
+            'critical_comments': critical_count,
+            'community_health': community_health,
         }
 
     def get_all_user_analyses_with_data(self, user_id, limit=None):

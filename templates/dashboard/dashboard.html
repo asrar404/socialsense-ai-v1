@@ -31,7 +31,7 @@
 </ul>
 
 <div class="row g-3 mb-4">
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-1 text-primary mb-1">{{ stats.total_analyses }}</div>
@@ -39,7 +39,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-1 text-info mb-1">{{ stats.total_comments }}</div>
@@ -47,7 +47,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4 col-6">
+    <div class="col-md-3 col-6">
         <div class="card border-secondary h-100">
             <div class="card-body text-center">
                 <div class="fs-1 text-warning mb-1">{{ stats.avg_risk }}</div>
@@ -56,34 +56,60 @@
         </div>
     </div>
     <div class="col-md-3 col-6">
-        <div class="card border-secondary">
-            <div class="card-body text-center py-3">
-                <div class="text-danger fs-4 fw-bold">{{ stats.avg_spam }}</div>
-                <div class="text-muted small">Avg Spam</div>
+        <div class="card border-secondary h-100">
+            <div class="card-body text-center">
+                <div class="fs-1 text-danger mb-1">{{ stats.critical_comments }}</div>
+                <div class="text-muted small">Critical Comments</div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 col-6">
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12">
         <div class="card border-secondary">
-            <div class="card-body text-center py-3">
-                <div class="text-danger fs-4 fw-bold">{{ stats.avg_toxicity }}</div>
-                <div class="text-muted small">Avg Toxicity</div>
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-heart-circle-check me-2"></i>Community Health: <span class="badge bg-{{ 'success' if stats.community_health == 'Low' else 'warning' if stats.community_health == 'Medium' else 'danger' }}">{{ stats.community_health }}</span></h6>
             </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-secondary">
-            <div class="card-body text-center py-3">
-                <div class="text-success fs-4 fw-bold">{{ stats.avg_sentiment }}</div>
-                <div class="text-muted small">Avg Sentiment</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 col-6">
-        <div class="card border-secondary">
-            <div class="card-body text-center py-3">
-                <div class="text-warning fs-4 fw-bold">{{ stats.avg_ai_like }}</div>
-                <div class="text-muted small">Avg AI-like</div>
+            <div class="card-body">
+                <div class="row g-2 text-center">
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg Spam</div>
+                            <div class="fw-bold text-danger">{{ stats.avg_spam }}</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg Toxicity</div>
+                            <div class="fw-bold text-danger">{{ stats.avg_toxicity }}</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg Sentiment</div>
+                            <div class="fw-bold text-success">{{ stats.avg_sentiment }}</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg AI-like</div>
+                            <div class="fw-bold text-warning">{{ stats.avg_ai_like }}</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg Bot</div>
+                            <div class="fw-bold text-warning">{{ stats.avg_bot }}</div>
+                        </div>
+                    </div>
+                    <div class="col-3 col-md-2">
+                        <div class="p-2 bg-dark rounded">
+                            <div class="small text-muted">Avg Risk</div>
+                            <div class="fw-bold text-info">{{ stats.avg_risk }}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -107,6 +133,29 @@
             </div>
             <div class="card-body">
                 <canvas id="sentimentChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-chart-simple me-2"></i>Toxicity Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="toxicityChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-chart-simple me-2"></i>Spam Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="spamChart" height="200"></canvas>
             </div>
         </div>
     </div>
@@ -186,56 +235,47 @@
 {% block extra_scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const riskCtx = document.getElementById('riskDistributionChart');
-    if (riskCtx) {
-        new Chart(riskCtx, {
-            type: 'pie',
+    function initChart(id, type, labels, data, colors) {
+        const ctx = document.getElementById(id);
+        if (!ctx) return;
+        const config = {
+            type: type,
             data: {
-                labels: ['Low', 'Medium', 'High', 'Critical'],
+                labels: labels,
                 datasets: [{
-                    data: [0, 0, 0, 0],
-                    backgroundColor: ['#198754', '#ffc107', '#fd7e14', '#dc3545']
+                    data: data,
+                    backgroundColor: colors
                 }]
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { position: 'bottom', labels: { color: '#adb5bd' } }
-                }
+                    legend: type === 'pie' ? { position: 'bottom', labels: { color: '#adb5bd' } } : { display: false }
+                },
+                scales: type === 'bar' ? {
+                    y: { beginAtZero: true, ticks: { color: '#adb5bd' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                    x: { ticks: { color: '#adb5bd' } }
+                } : undefined
             }
-        });
+        };
+        new Chart(ctx, config);
     }
 
-    const sentCtx = document.getElementById('sentimentChart');
-    if (sentCtx) {
-        new Chart(sentCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Positive', 'Neutral', 'Negative'],
-                datasets: [{
-                    label: 'Comments',
-                    data: [0, 0, 0],
-                    backgroundColor: ['#198754', '#ffc107', '#dc3545']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: { display: false }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: { color: '#adb5bd' },
-                        grid: { color: 'rgba(255,255,255,0.05)' }
-                    },
-                    x: {
-                        ticks: { color: '#adb5bd' }
-                    }
-                }
-            }
-        });
-    }
+    initChart('riskDistributionChart', 'pie',
+        ['Low', 'Medium', 'High', 'Critical'], [0, 0, 0, 0],
+        ['#198754', '#ffc107', '#fd7e14', '#dc3545']);
+
+    initChart('sentimentChart', 'bar',
+        ['Positive', 'Neutral', 'Negative'], [0, 0, 0],
+        ['#198754', '#ffc107', '#dc3545']);
+
+    initChart('toxicityChart', 'bar',
+        ['Low', 'Medium', 'High', 'Critical'], [0, 0, 0, 0],
+        ['#198754', '#ffc107', '#fd7e14', '#dc3545']);
+
+    initChart('spamChart', 'bar',
+        ['Low', 'Medium', 'High', 'Critical'], [0, 0, 0, 0],
+        ['#198754', '#ffc107', '#fd7e14', '#dc3545']);
 });
 </script>
 {% endblock %}

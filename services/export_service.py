@@ -50,26 +50,35 @@ class ExportService:
             writer.writerow(['Demo Mode', 'Yes' if (yt and yt.is_demo) else 'No'])
         writer.writerow([])
 
+        if analysis.analysis_summary:
+            writer.writerow(['# Analysis Summary'])
+            for line in analysis.analysis_summary.split('\n'):
+                writer.writerow([line])
+            writer.writerow([])
+
         writer.writerow([
             'Comment',
             'Author',
             'Published At',
-            'Spam Score',
-            'Spam Explanation',
-            'Toxicity Score',
-            'Toxicity Explanation',
             'Sentiment',
             'Sentiment Score',
+            'Sentiment Confidence',
             'Sentiment Explanation',
+            'Spam Score',
+            'Spam Confidence',
+            'Spam Explanation',
+            'Toxicity Score',
+            'Toxicity Confidence',
+            'Toxicity Explanation',
             'Duplicate Score',
             'Duplicate Explanation',
-            'AI-like Score',
-            'AI-like Explanation',
             'Bot Score',
+            'Bot Confidence',
             'Bot Explanation',
             'Risk Score',
             'Risk Level',
             'Risk Explanation',
+            'Recommendation',
         ])
 
         for c in comments:
@@ -78,22 +87,25 @@ class ExportService:
                 c.comment_text,
                 c.author or '',
                 published,
-                c.spam_score,
-                c.spam_explanation or '',
-                c.toxicity_score,
-                c.toxicity_explanation or '',
                 c.sentiment or '',
                 c.sentiment_score,
+                c.sentiment_confidence or '',
                 c.sentiment_explanation or '',
+                c.spam_score,
+                c.spam_confidence or '',
+                c.spam_explanation or '',
+                c.toxicity_score,
+                c.toxicity_confidence or '',
+                c.toxicity_explanation or '',
                 c.duplicate_score,
                 c.duplicate_explanation or '',
-                c.ai_like_score,
-                c.ai_like_explanation or '',
                 c.bot_score,
+                c.bot_confidence or '',
                 c.bot_explanation or '',
                 c.risk_score,
                 c.risk_level,
                 c.risk_explanation or '',
+                c.recommendation or '',
             ])
 
         csv_content = output.getvalue()
@@ -165,22 +177,27 @@ class ExportService:
                 'comment_text': c.comment_text,
                 'author': c.author,
                 'published_at': c.published_at.isoformat() if c.published_at else None,
-                'spam_score': c.spam_score,
-                'spam_explanation': c.spam_explanation,
-                'toxicity_score': c.toxicity_score,
-                'toxicity_explanation': c.toxicity_explanation,
                 'sentiment': c.sentiment,
                 'sentiment_score': c.sentiment_score,
+                'sentiment_confidence': c.sentiment_confidence,
                 'sentiment_explanation': c.sentiment_explanation,
+                'spam_score': c.spam_score,
+                'spam_confidence': c.spam_confidence,
+                'spam_explanation': c.spam_explanation,
+                'toxicity_score': c.toxicity_score,
+                'toxicity_confidence': c.toxicity_confidence,
+                'toxicity_explanation': c.toxicity_explanation,
                 'duplicate_score': c.duplicate_score,
                 'duplicate_explanation': c.duplicate_explanation,
                 'ai_like_score': c.ai_like_score,
                 'ai_like_explanation': c.ai_like_explanation,
                 'bot_score': c.bot_score,
+                'bot_confidence': c.bot_confidence,
                 'bot_explanation': c.bot_explanation,
                 'risk_score': c.risk_score,
                 'risk_level': c.risk_level,
                 'risk_explanation': c.risk_explanation,
+                'recommendation': c.recommendation,
             })
 
         data = {
@@ -189,6 +206,7 @@ class ExportService:
             'analysis_type': analysis.analysis_type,
             'created_at': analysis.created_at.isoformat() if analysis.created_at else None,
             'metadata': metadata,
+            'analysis_summary': analysis.analysis_summary,
             'comment_count': len(comments_data),
             'comments': comments_data,
         }

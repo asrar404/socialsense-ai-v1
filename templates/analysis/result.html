@@ -47,9 +47,20 @@
 
 <div class="alert alert-info">
     <i class="fas fa-info-circle me-2"></i>
-    AI detection is probabilistic and should not be treated as proof.
+    AI/Bot detection is probabilistic and should not be treated as proof.
     Scores are indicators, not definitive classifications.
 </div>
+
+{% if data.analysis.analysis_summary %}
+<div class="card border-info mb-4">
+    <div class="card-header bg-dark text-info">
+        <h6 class="mb-0"><i class="fas fa-chart-simple me-2"></i>Analysis Summary</h6>
+    </div>
+    <div class="card-body">
+        <pre class="mb-0 text-light" style="font-family: inherit; white-space: pre-wrap;">{{ data.analysis.analysis_summary }}</pre>
+    </div>
+</div>
+{% endif %}
 
 {% if data.analysis.analysis_type == 'reddit' and data.reddit %}
 <div class="card border-secondary mb-4">
@@ -253,8 +264,9 @@
     </div>
 </div>
 
-{% if data.top_spam %}
+{% if data.top_spam or data.top_toxic %}
 <div class="row g-3 mb-4">
+    {% if data.top_spam %}
     <div class="col-md-6">
         <div class="card border-warning border-opacity-25 h-100">
             <div class="card-header bg-dark text-warning">
@@ -273,6 +285,8 @@
             </div>
         </div>
     </div>
+    {% endif %}
+    {% if data.top_toxic %}
     <div class="col-md-6">
         <div class="card border-danger border-opacity-25 h-100">
             <div class="card-header bg-dark text-danger">
@@ -291,6 +305,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endif %}
 
@@ -315,6 +330,11 @@
                     Sentiment: {{ c.sentiment }} | AI-like: {{ c.ai_like_score }} |
                     Bot: {{ c.bot_score }}
                 </small>
+                {% if c.recommendation %}
+                <div class="mt-1">
+                    <small class="text-warning"><i class="fas fa-lightbulb me-1"></i>{{ c.recommendation }}</small>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -334,13 +354,13 @@
                     <tr>
                         <th style="min-width:200px">Comment</th>
                         <th>Author</th>
-                        <th>Spam</th>
-                        <th>Toxicity</th>
                         <th>Sentiment</th>
-                        <th>AI-like</th>
+                        <th>Toxicity</th>
+                        <th>Spam</th>
                         <th>Bot</th>
                         <th>Risk</th>
                         <th>Level</th>
+                        <th>Reasons</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -348,22 +368,53 @@
                     <tr>
                         <td>
                             <small>{{ c.comment_text|truncate(80) }}</small>
+                            {% if c.recommendation %}
+                            <br><small class="text-warning"><i class="fas fa-lightbulb me-1"></i>{{ c.recommendation|truncate(50) }}</small>
+                            {% endif %}
                         </td>
                         <td><small>{{ c.author }}</small></td>
-                        <td><small>{{ c.spam_score }}</small></td>
-                        <td><small>{{ c.toxicity_score }}</small></td>
                         <td>
-                            <small class="text-{{ 'success' if c.sentiment == 'Positive' else 'warning' if c.sentiment == 'Neutral' else 'danger' }}">
+                            <span class="badge bg-{{ 'success' if c.sentiment == 'Positive' else 'warning' if c.sentiment == 'Neutral' else 'danger' }}">
                                 {{ c.sentiment }}
-                            </small>
+                            </span>
+                            {% if c.sentiment_confidence %}
+                            <br><small class="text-muted">{{ (c.sentiment_confidence * 100)|int }}%</small>
+                            {% endif %}
                         </td>
-                        <td><small>{{ c.ai_like_score }}</small></td>
-                        <td><small>{{ c.bot_score }}</small></td>
+                        <td>
+                            {% set tox_badge = 'success' if (c.toxicity_score or 0) <= 15 else 'warning' if (c.toxicity_score or 0) <= 40 else 'danger' %}
+                            <span class="badge bg-{{ tox_badge }}">{{ c.toxicity_score }}</span>
+                            {% if c.toxicity_confidence %}
+                            <br><small class="text-muted">{{ (c.toxicity_confidence * 100)|int }}%</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set spam_badge = 'success' if (c.spam_score or 0) <= 15 else 'warning' if (c.spam_score or 0) <= 40 else 'danger' %}
+                            <span class="badge bg-{{ spam_badge }}">{{ c.spam_score }}</span>
+                            {% if c.spam_confidence %}
+                            <br><small class="text-muted">{{ (c.spam_confidence * 100)|int }}%</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set bot_badge = 'success' if (c.bot_score or 0) <= 15 else 'warning' if (c.bot_score or 0) <= 40 else 'danger' %}
+                            <span class="badge bg-{{ bot_badge }}">{{ c.bot_score }}</span>
+                            {% if c.bot_confidence %}
+                            <br><small class="text-muted">{{ (c.bot_confidence * 100)|int }}%</small>
+                            {% endif %}
+                        </td>
                         <td><small>{{ c.risk_score }}</small></td>
                         <td>
-                            <span class="badge bg-{{ 'success' if c.risk_level == 'Low' else 'warning' if c.risk_level == 'Medium' else 'danger' }}">
+                            <span class="badge bg-{{ 'success' if c.risk_level == 'Low' else 'warning' if c.risk_level == 'Medium' else 'danger' if c.risk_level == 'High' else 'danger' }}">
                                 {{ c.risk_level }}
                             </span>
+                        </td>
+                        <td>
+                            {% if c.spam_explanation and c.spam_explanation != 'No spam indicators detected' %}
+                            <small class="text-muted d-block">Spam: {{ c.spam_explanation|truncate(40) }}</small>
+                            {% endif %}
+                            {% if c.toxicity_explanation and c.toxicity_explanation != 'No significant toxic content detected.' %}
+                            <small class="text-muted d-block">Toxicity: {{ c.toxicity_explanation|truncate(40) }}</small>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

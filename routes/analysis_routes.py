@@ -2,10 +2,12 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from services.analysis_service import AnalysisService
 from services.reddit_service import RedditService
+from services.job_service import JobService
 
 analysis_bp = Blueprint('analysis', __name__, url_prefix='/analysis')
 analysis_service = AnalysisService()
 reddit_service = RedditService()
+job_service = JobService()
 
 
 @analysis_bp.route('/new', methods=['GET', 'POST'])
@@ -13,56 +15,37 @@ reddit_service = RedditService()
 def new():
     if request.method == 'POST':
         platform = request.form.get('platform', 'youtube')
+        comment_limit = request.form.get('comment_limit', '100', type=int)
+        if comment_limit not in (100, 500, 1000):
+            comment_limit = 100
 
         if platform == 'reddit':
-            reddit_input = request.form.get('reddit_input', '').strip()
-            if not reddit_input:
+            source_input = request.form.get('reddit_input', '').strip()
+            if not source_input:
                 flash('Please enter a Reddit post URL, post ID, or subreddit name.', 'danger')
                 return render_template('analysis/new.html')
-
-            comment_limit = request.form.get('comment_limit', '100', type=int)
-            if comment_limit not in (100, 500, 1000):
-                comment_limit = 100
-
-            post_id = reddit_service.extract_post_id(reddit_input)
-            if not post_id:
-                flash('Invalid Reddit post URL or ID.', 'danger')
-                return render_template('analysis/new.html')
-
-            subreddit = reddit_service.extract_post_info(reddit_input)
-            subreddit_name = subreddit['subreddit'] if subreddit else None
-
-            result = analysis_service.create_reddit_analysis(
-                current_user.id, post_id, subreddit=subreddit_name,
-                input_type='post', comment_limit=comment_limit
-            )
-
-            if not result['success']:
-                flash(result['error'], 'danger')
-                return render_template('analysis/new.html')
-
-            flash(f'Reddit analysis complete! Processed {result["comment_count"]} comments.', 'success')
-            return redirect(url_for('analysis.result', analysis_id=result['analysis_id']))
         else:
-            video_url = request.form.get('video_url', '').strip()
-            if not video_url:
+            source_input = request.form.get('video_url', '').strip()
+            if not source_input:
                 flash('Please enter a YouTube URL or Video ID.', 'danger')
                 return render_template('analysis/new.html')
 
-            comment_limit = request.form.get('comment_limit', '100', type=int)
-            if comment_limit not in (100, 500, 1000):
-                comment_limit = 100
+        request_hash = job_service.compute_request_hash(current_user.id, platform, source_input)
+        result = job_service.create_job(current_user.id, platform, source_input, comment_limit, request_hash)
 
-            result = analysis_service.create_youtube_analysis(
-                current_user.id, video_url, comment_limit=comment_limit
-            )
+        if not result['success']:
+            flash(result['error'], 'danger')
+            return render_template('analysis/new.html')
 
-            if not result['success']:
-                flash(result['error'], 'danger')
-                return render_template('analysis/new.html')
+        if result.get('duplicate'):
+            existing = job_service.get_job(result['job_id'], current_user.id)
+            if existing and existing.status == 'COMPLETED' and existing.result_analysis_id:
+                return redirect(url_for('analysis.result', analysis_id=existing.result_analysis_id))
+            flash('Analysis already queued. Redirecting to job status.', 'info')
+            return redirect(url_for('jobs.status', job_id=result['job_id']))
 
-            flash(f'Analysis complete! Processed {result["comment_count"]} comments.', 'success')
-            return redirect(url_for('analysis.result', analysis_id=result['analysis_id']))
+        flash('Analysis queued! You can monitor progress on the job status page.', 'info')
+        return redirect(url_for('jobs.status', job_id=result['job_id']))
 
     from flask import current_app
     yt_demo = not current_app.config.get('YOUTUBE_API_KEY', '')

@@ -41,8 +41,7 @@ def test_analysis_invalid_url(logged_in_client):
         'video_url': 'not-a-valid-url',
         'comment_limit': 100,
     })
-    assert response.status_code == 200
-    assert b'Invalid' in response.data or b'Please' in response.data
+    assert response.status_code == 302
 
 
 def test_analysis_with_no_limit_param(logged_in_client):

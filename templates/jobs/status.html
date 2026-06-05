@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Job Status - SocialSense AI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-8">
+        <div class="card border-secondary">
+            <div class="card-body p-4 text-center">
+                <h3 class="fw-bold mb-3">
+                    <i class="fas fa-tasks me-2 text-primary"></i>Job Status
+                </h3>
+
+                <div class="mb-3">
+                    <span class="badge bg-{{ 'secondary' if job.status == 'PENDING' else 'info' if job.status == 'RUNNING' else 'success' if job.status == 'COMPLETED' else 'danger' if job.status in ('FAILED', 'TIMEOUT') else 'warning' }} fs-6">
+                        {{ job.status }}
+                    </span>
+                    {% if job.platform == 'youtube' %}
+                    <span class="badge bg-secondary fs-6"><i class="fab fa-youtube text-danger me-1"></i>YouTube</span>
+                    {% elif job.platform == 'reddit' %}
+                    <span class="badge bg-secondary fs-6"><i class="fab fa-reddit text-orange me-1"></i>Reddit</span>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3 text-muted small">
+                    <i class="fas fa-link me-1"></i>{{ job.source_input|truncate(50) }}
+                </div>
+
+                <div class="mb-4">
+                    <div class="progress" style="height: 30px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                             role="progressbar"
+                             style="width: {{ job.progress_percent }}%;"
+                             aria-valuenow="{{ job.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ job.progress_percent }}%
+                        </div>
+                    </div>
+                </div>
+
+                <div id="currentStep" class="mb-3 text-info fw-bold">
+                    {% if job.current_step %}
+                        <i class="fas fa-spinner fa-spin me-2"></i>{{ job.current_step }}
+                    {% else %}
+                        <i class="fas fa-clock me-2"></i>Waiting...
+                    {% endif %}
+                </div>
+
+                <div id="elapsedTime" class="mb-3 text-muted small">
+                    Elapsed: <span id="timerDisplay">0</span>s
+                </div>
+
+                {% if job.error_message %}
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>{{ job.error_message }}
+                </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-center gap-3 mt-4">
+                    {% if job.status in ('COMPLETED',) and job.result_analysis_id %}
+                    <a href="{{ url_for('analysis.result', analysis_id=job.result_analysis_id) }}"
+                       class="btn btn-success">
+                        <i class="fas fa-eye me-1"></i>View Results
+                    </a>
+                    {% endif %}
+
+                    {% if job.status in ('RUNNING', 'PENDING') %}
+                    <form method="POST" action="{{ url_for('jobs.cancel', job_id=job.id) }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-ban me-1"></i>Cancel
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if job.status in ('FAILED', 'CANCELLED', 'TIMEOUT') %}
+                    <form method="POST" action="{{ url_for('jobs.retry', job_id=job.id) }}" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-redo me-1"></i>Retry
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{{ url_for('analysis.new') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>New Analysis
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card border-secondary mt-4">
+            <div class="card-header bg-dark">
+                <h6 class="mb-0"><i class="fas fa-list me-2"></i>Job Logs</h6>
+            </div>
+            <div class="card-body p-0" id="logContainer">
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-spinner fa-spin me-2"></i>Loading logs...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const jobId = {{ job.id }};
+const statusUrl = '{{ url_for("jobs.job_status_api", job_id=job.id) }}';
+const logsUrl = '{{ url_for("jobs.logs", job_id=job.id) }}';
+
+let startTime = Date.now() - {{ (job.execution_time_seconds or 0) * 1000 }};
+
+function updateProgress(data) {
+    const bar = document.getElementById('progressBar');
+    const step = document.getElementById('currentStep');
+    const timer = document.getElementById('timerDisplay');
+
+    if (data.progress_percent !== undefined) {
+        bar.style.width = data.progress_percent + '%';
+        bar.textContent = data.progress_percent + '%';
+        bar.setAttribute('aria-valuenow', data.progress_percent);
+    }
+
+    if (data.current_step) {
+        step.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>' + data.current_step;
+    }
+
+    if (data.execution_time) {
+        timer.textContent = Math.round(data.execution_time);
+    }
+
+    if (data.status === 'COMPLETED' || data.status === 'FAILED' || data.status === 'CANCELLED') {
+        clearInterval(pollInterval);
+        bar.classList.remove('progress-bar-animated');
+        if (data.status === 'COMPLETED') {
+            bar.classList.add('bg-success');
+            step.innerHTML = '<i class="fas fa-check-circle text-success me-2"></i>Completed';
+        } else if (data.status === 'FAILED' || data.status === 'TIMEOUT') {
+            bar.classList.add('bg-danger');
+            step.innerHTML = '<i class="fas fa-times-circle text-danger me-2"></i>' + (data.error_message || data.status);
+        } else if (data.status === 'CANCELLED') {
+            bar.classList.add('bg-warning');
+            step.innerHTML = '<i class="fas fa-ban text-warning me-2"></i>Cancelled';
+        }
+        setTimeout(function() { location.reload(); }, 2000);
+    }
+}
+
+function fetchStatus() {
+    fetch(statusUrl)
+        .then(r => r.json())
+        .then(updateProgress)
+        .catch(e => console.error('Status fetch error:', e));
+}
+
+function fetchLogs() {
+    fetch(logsUrl)
+        .then(r => r.json())
+        .then(logs => {
+            const container = document.getElementById('logContainer');
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div class="text-center py-3 text-muted">No logs yet.</div>';
+                return;
+            }
+            let html = '<div class="list-group list-group-flush">';
+            logs.forEach(l => {
+                const levelClass = l.level === 'ERROR' ? 'danger' : l.level === 'WARNING' ? 'warning' : l.level === 'DEBUG' ? 'secondary' : 'info';
+                html += `<div class="list-group-item bg-dark border-secondary">
+                    <small class="text-muted">${l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : ''}</small>
+                    <span class="badge bg-${levelClass} ms-2">${l.level}</span>
+                    ${l.step ? `<small class="text-primary ms-2">[${l.step}]</small>` : ''}
+                    <span class="ms-2">${l.message}</span>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        })
+        .catch(e => console.error('Logs fetch error:', e));
+}
+
+const pollInterval = setInterval(function() {
+    fetchStatus();
+    fetchLogs();
+}, 2000);
+
+setInterval(function() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('timerDisplay').textContent = elapsed;
+}, 1000);
+
+fetchStatus();
+fetchLogs();
+</script>
+{% endblock %}

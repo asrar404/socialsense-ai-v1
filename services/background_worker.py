@@ -1,0 +1,137 @@
+import traceback
+from datetime import datetime, timezone
+from flask import current_app
+from database import db
+from models.job import Job
+from repositories.job_repository import JobRepository
+from repositories.job_log_repository import JobLogRepository
+from services.analysis_service import AnalysisService
+from services.job_queue_interface import ThreadPoolQueueProvider
+
+
+class BackgroundWorker:
+    def __init__(self, queue_provider=None):
+        self.job_repo = JobRepository()
+        self.log_repo = JobLogRepository()
+        self.analysis_service = AnalysisService()
+        self.queue = queue_provider or ThreadPoolQueueProvider(max_workers=4)
+        self._recovered = False
+
+    def recover_stuck_jobs(self, app):
+        with app.app_context():
+            stuck = self.job_repo.get_stuck_jobs()
+            for job in stuck:
+                if job.status == Job.RUNNING:
+                    self.job_repo.mark_failed(job.id, 'Job interrupted by application restart.')
+                    self.log_repo.create_log(job.id, 'ERROR', 'Job interrupted by application restart.', 'Recovery')
+            self._recovered = True
+
+    def submit_analysis(self, job_id, app):
+        if app and app.config.get('TESTING'):
+            self._run_analysis(job_id, app)
+            return None
+        future = self.queue.submit(self._run_analysis, job_id, app)
+        return future
+
+    def cancel_job(self, job_id):
+        job = self.job_repo.get_job(job_id)
+        if not job:
+            return False
+        if job.status == Job.PENDING:
+            self.job_repo.mark_cancelled(job_id)
+            self.log_repo.create_log(job_id, 'INFO', 'Job cancelled while pending.', 'Cancellation')
+            return True
+        if job.status == Job.RUNNING:
+            job.cancellation_requested = True
+            db.session.commit()
+            self.log_repo.create_log(job_id, 'INFO', 'Cancellation requested.', 'Cancellation')
+            return True
+        return False
+
+    def _run_analysis(self, job_id, app):
+        with app.app_context():
+            try:
+                job = self.job_repo.get_job(job_id)
+                if not job:
+                    return
+
+                if job.cancellation_requested:
+                    self.job_repo.mark_cancelled(job_id)
+                    self.log_repo.create_log(job_id, 'INFO', 'Job was cancelled before starting.', 'Cancellation')
+                    return
+
+                self.job_repo.update_status(job_id, Job.RUNNING)
+                self.log_repo.create_log(job_id, 'INFO', 'Worker assigned.', 'Starting')
+                self.job_repo.update_progress(job_id, 5, 'Worker Assigned')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 10, 'Fetching Metadata')
+                self.log_repo.create_log(job_id, 'INFO', f'Starting {job.platform} analysis: {job.source_input}', 'Fetching')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 25, 'Fetching Content')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 40, 'Fetching Comments')
+                self.log_repo.create_log(job_id, 'INFO', f'Fetching up to {job.comment_limit} comments.', 'Fetching')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 60, 'Running AI Analysis')
+                self.log_repo.create_log(job_id, 'INFO', 'AI analysis engines running.', 'Analysis')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 75, 'Generating Summary')
+                self.log_repo.create_log(job_id, 'INFO', 'Generating analysis summary.', 'Summary')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 85, 'Saving Results')
+
+                if job.platform == 'youtube':
+                    result = self.analysis_service.create_youtube_analysis(
+                        job.user_id, job.source_input, comment_limit=job.comment_limit
+                    )
+                elif job.platform == 'reddit':
+                    result = self.analysis_service.create_reddit_analysis(
+                        job.user_id, job.source_input, comment_limit=job.comment_limit
+                    )
+                else:
+                    self.job_repo.mark_failed(job_id, f'Unknown platform: {job.platform}')
+                    self.log_repo.create_log(job_id, 'ERROR', f'Unknown platform: {job.platform}', 'Error')
+                    return
+
+                if not result['success']:
+                    self.job_repo.mark_failed(job_id, result.get('error', 'Analysis failed'))
+                    self.log_repo.create_log(job_id, 'ERROR', result.get('error', 'Analysis failed'), 'Error')
+                    return
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 95, 'Generating Exports')
+                self.log_repo.create_log(job_id, 'INFO', f'Analysis complete. {result["comment_count"]} comments processed.', 'Complete')
+
+                self.job_repo.mark_completed(job_id, analysis_id=result['analysis_id'])
+                self.log_repo.create_log(job_id, 'INFO', 'Job completed successfully.', 'Complete')
+
+            except CancellationRequested:
+                self.job_repo.mark_cancelled(job_id)
+                self.log_repo.create_log(job_id, 'INFO', 'Job cancelled by user.', 'Cancellation')
+
+            except Exception as e:
+                error_msg = f'{type(e).__name__}: {str(e)}'
+                self.job_repo.mark_failed(job_id, error_msg)
+                self.log_repo.create_log(job_id, 'ERROR', error_msg, 'Error', metadata_json=traceback.format_exc())
+
+    def _check_cancelled(self, job_id):
+        job = self.job_repo.get_job(job_id)
+        if job and job.cancellation_requested:
+            raise CancellationRequested()
+
+
+class CancellationRequested(Exception):
+    pass

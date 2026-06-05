@@ -3,3 +3,5 @@ from repositories.analysis_repository import AnalysisRepository
 from repositories.comment_result_repository import CommentResultRepository
 from repositories.reddit_analysis_repository import RedditAnalysisRepository
 from repositories.report_export_repository import ReportExportRepository
+from repositories.job_repository import JobRepository
+from repositories.job_log_repository import JobLogRepository

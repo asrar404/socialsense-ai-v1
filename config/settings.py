@@ -20,6 +20,11 @@ class Config:
     REDDIT_USER_AGENT = os.environ.get('REDDIT_USER_AGENT', 'SocialSenseAI/1.0')
 
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024
+    MAX_CONCURRENT_JOBS = int(os.environ.get('MAX_CONCURRENT_JOBS', '4'))
+    MAX_JOBS_PER_USER = int(os.environ.get('MAX_JOBS_PER_USER', '20'))
+    MAX_JOB_RUNTIME = int(os.environ.get('MAX_JOB_RUNTIME', '600'))
+    JOB_HISTORY_RETENTION_DAYS = int(os.environ.get('JOB_HISTORY_RETENTION_DAYS', '30'))
+    MAX_JOB_RETRIES = int(os.environ.get('MAX_JOB_RETRIES', '3'))
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reports')
 

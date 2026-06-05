@@ -20,6 +20,11 @@ def create_app(config_name=None):
     app.config['REDDIT_CLIENT_SECRET'] = os.environ.get('REDDIT_CLIENT_SECRET', '')
     app.config['REDDIT_USER_AGENT'] = os.environ.get('REDDIT_USER_AGENT', 'SocialSenseAI/1.0')
     app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'reports')
+    app.config['MAX_CONCURRENT_JOBS'] = int(os.environ.get('MAX_CONCURRENT_JOBS', '4'))
+    app.config['MAX_JOBS_PER_USER'] = int(os.environ.get('MAX_JOBS_PER_USER', '20'))
+    app.config['MAX_JOB_RUNTIME'] = int(os.environ.get('MAX_JOB_RUNTIME', '600'))
+    app.config['JOB_HISTORY_RETENTION_DAYS'] = int(os.environ.get('JOB_HISTORY_RETENTION_DAYS', '30'))
+    app.config['MAX_JOB_RETRIES'] = int(os.environ.get('MAX_JOB_RETRIES', '3'))
 
     from database import init_db
     init_db(app)
@@ -40,17 +45,23 @@ def create_app(config_name=None):
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
 
-    from routes import auth_bp, dashboard_bp, analysis_bp, export_bp
+    from routes import auth_bp, dashboard_bp, analysis_bp, export_bp, job_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(export_bp)
+    app.register_blueprint(job_bp)
+
+    from services.background_worker import BackgroundWorker
+    worker = BackgroundWorker()
+    worker.recover_stuck_jobs(app)
+    app.config['_worker'] = worker
 
     @app.context_processor
     def inject_globals():
         is_demo = not app.config.get('YOUTUBE_API_KEY', '')
         has_reddit = bool(app.config.get('REDDIT_CLIENT_ID', '') and app.config.get('REDDIT_CLIENT_SECRET', ''))
-        return {'is_demo_mode': is_demo, 'has_reddit_creds': has_reddit}
+        return {'is_demo_mode': is_demo, 'has_reddit_creds': has_reddit, 'nav_job_bp': job_bp}
 
     @app.route('/')
     def index():

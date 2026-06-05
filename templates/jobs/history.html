@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Job History - SocialSense AI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="fas fa-history me-2"></i>Job History</h3>
+    <a href="{{ url_for('analysis.new') }}" class="btn btn-primary">
+        <i class="fas fa-plus-circle me-1"></i>New Analysis
+    </a>
+</div>
+
+<ul class="nav nav-pills mb-4">
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status is none else '' }}"
+           href="{{ url_for('jobs.list_jobs') }}">All</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status == 'PENDING' else '' }}"
+           href="{{ url_for('jobs.list_jobs', status='PENDING') }}">Pending</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status == 'RUNNING' else '' }}"
+           href="{{ url_for('jobs.list_jobs', status='RUNNING') }}">Running</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status == 'COMPLETED' else '' }}"
+           href="{{ url_for('jobs.list_jobs', status='COMPLETED') }}">Completed</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status == 'FAILED' else '' }}"
+           href="{{ url_for('jobs.list_jobs', status='FAILED') }}">Failed</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_status == 'CANCELLED' else '' }}"
+           href="{{ url_for('jobs.list_jobs', status='CANCELLED') }}">Cancelled</a>
+    </li>
+</ul>
+
+<div class="card border-secondary">
+    <div class="card-body p-0">
+        {% if jobs %}
+        <div class="table-responsive">
+            <table class="table table-dark table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Platform</th>
+                        <th>Input</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Time</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in jobs %}
+                    <tr>
+                        <td>{{ j.id }}</td>
+                        <td>
+                            {% if j.platform == 'youtube' %}
+                            <span class="badge bg-secondary"><i class="fab fa-youtube text-danger me-1"></i>YouTube</span>
+                            {% elif j.platform == 'reddit' %}
+                            <span class="badge bg-secondary"><i class="fab fa-reddit text-orange me-1"></i>Reddit</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ j.platform }}</span>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ j.source_input|truncate(30) }}</small></td>
+                        <td>
+                            <span class="badge bg-{{ 'secondary' if j.status == 'PENDING' else 'info' if j.status == 'RUNNING' else 'success' if j.status == 'COMPLETED' else 'danger' if j.status in ('FAILED', 'TIMEOUT') else 'warning' }}">
+                                {{ j.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="progress" style="height: 8px; min-width: 80px;">
+                                <div class="progress-bar progress-bar-striped {{ 'progress-bar-animated' if j.status == 'RUNNING' else '' }}"
+                                     role="progressbar" style="width: {{ j.progress_percent }}%;"
+                                     aria-valuenow="{{ j.progress_percent }}" aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="text-muted">{{ j.progress_percent }}%</small>
+                        </td>
+                        <td>
+                            {% if j.execution_time_seconds %}
+                            <small>{{ j.execution_time_seconds|round(1) }}s</small>
+                            {% else %}
+                            <small class="text-muted">-</small>
+                            {% endif %}
+                        </td>
+                        <td><small>{{ j.created_at.strftime('%Y-%m-%d %H:%M') }}</small></td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('jobs.status', job_id=j.id) }}"
+                                   class="btn btn-outline-primary" title="View Status">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if j.status == 'COMPLETED' and j.result_analysis_id %}
+                                <a href="{{ url_for('analysis.result', analysis_id=j.result_analysis_id) }}"
+                                   class="btn btn-outline-success" title="View Results">
+                                    <i class="fas fa-chart-bar"></i>
+                                </a>
+                                {% endif %}
+                                {% if j.status in ('FAILED', 'CANCELLED', 'TIMEOUT') %}
+                                <form method="POST" action="{{ url_for('jobs.retry', job_id=j.id) }}"
+                                      style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-warning" title="Retry">
+                                        <i class="fas fa-redo"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                                {% if j.status in ('PENDING', 'RUNNING') %}
+                                <form method="POST" action="{{ url_for('jobs.cancel', job_id=j.id) }}"
+                                      style="display:inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-outline-danger" title="Cancel">
+                                        <i class="fas fa-ban"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-inbox fa-4x mb-3"></i>
+            <h5>No Job History</h5>
+            <p>Jobs are created when you start an analysis.</p>
+            <a href="{{ url_for('analysis.new') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-1"></i>New Analysis
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

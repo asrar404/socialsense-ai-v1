@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Maintenance - SocialSense AI{% endblock %}
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-8">
+        <h3 class="fw-bold mb-4"><i class="fas fa-tools me-2 text-primary"></i>Maintenance</h3>
+        <div class="card border-secondary mb-3"><div class="card-body">
+            <h6>Stuck Jobs: <span class="badge bg-warning">{{ stuck_count }}</span></h6>
+            <form method="POST" action="{{ url_for('admin.mark_stale_failed') }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-warning btn-sm"><i class="fas fa-flag me-1"></i>Mark Stale Failed</button>
+            </form>
+        </div></div>
+        <div class="card border-secondary mb-3"><div class="card-body">
+            <h6>Cleanup Old Data</h6>
+            <form method="POST" action="{{ url_for('admin.maintenance') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-danger btn-sm"><i class="fas fa-trash me-1"></i>Run Cleanup</button>
+            </form>
+        </div></div>
+        <div class="card border-secondary"><div class="card-body">
+            <h6>Scheduler</h6>
+            <form method="POST" action="{{ url_for('admin.run_scheduler') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-sm"><i class="fas fa-play me-1"></i>Run Scheduler</button>
+            </form>
+        </div></div>
+    </div>
+</div>
+{% endblock %}

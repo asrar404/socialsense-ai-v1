@@ -45,12 +45,19 @@ def create_app(config_name=None):
     from flask_wtf.csrf import CSRFProtect
     csrf = CSRFProtect(app)
 
-    from routes import auth_bp, dashboard_bp, analysis_bp, export_bp, job_bp
+    from routes import auth_bp, dashboard_bp, analysis_bp, export_bp, job_bp, \
+        schedule_bp, notification_bp, activity_bp, report_bp, trend_bp, admin_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(analysis_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(job_bp)
+    app.register_blueprint(schedule_bp)
+    app.register_blueprint(notification_bp)
+    app.register_blueprint(activity_bp)
+    app.register_blueprint(report_bp)
+    app.register_blueprint(trend_bp)
+    app.register_blueprint(admin_bp)
 
     from services.background_worker import BackgroundWorker
     worker = BackgroundWorker()
@@ -61,7 +68,15 @@ def create_app(config_name=None):
     def inject_globals():
         is_demo = not app.config.get('YOUTUBE_API_KEY', '')
         has_reddit = bool(app.config.get('REDDIT_CLIENT_ID', '') and app.config.get('REDDIT_CLIENT_SECRET', ''))
-        return {'is_demo_mode': is_demo, 'has_reddit_creds': has_reddit, 'nav_job_bp': job_bp}
+        unread_count = 0
+        try:
+            from flask_login import current_user
+            if current_user.is_authenticated:
+                from services.notification_service import NotificationService
+                unread_count = NotificationService().get_unread_count(current_user.id)
+        except Exception:
+            pass
+        return {'is_demo_mode': is_demo, 'has_reddit_creds': has_reddit, 'nav_job_bp': job_bp, 'unread_notifications': unread_count}
 
     @app.route('/')
     def index():

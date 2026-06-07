@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Activity - SocialSense AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="fas fa-stream me-2"></i>Activity Timeline</h3>
+</div>
+<div class="card border-secondary"><div class="card-body p-0">
+    {% if logs %}
+    <div class="list-group list-group-flush">
+        {% for log in logs %}
+        <div class="list-group-item bg-dark border-secondary">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <span class="badge bg-info me-2">{{ log.action }}</span>
+                    <span>{{ log.description or '' }}</span>
+                    {% if log.resource_type %}<small class="text-muted ms-2">({{ log.resource_type }} #{{ log.resource_id }})</small>{% endif %}
+                </div>
+                <small class="text-muted">{{ log.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted"><p>No activity recorded yet.</p></div>
+    {% endif %}
+</div></div>
+{% endblock %}

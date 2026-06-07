@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Notifications - SocialSense AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold"><i class="fas fa-bell me-2"></i>Notifications
+        {% if unread_count > 0 %}<span class="badge bg-danger ms-2">{{ unread_count }} unread</span>{% endif %}
+    </h3>
+    <div>
+        {% if unread_count > 0 %}
+        <form method="POST" action="{{ url_for('notifications.mark_all_read') }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-secondary btn-sm"><i class="fas fa-check-double me-1"></i>Mark All Read</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+<div class="card border-secondary"><div class="card-body p-0">
+    {% if notifications %}
+    <div class="list-group list-group-flush">
+        {% for n in notifications %}
+        <div class="list-group-item bg-dark border-secondary d-flex justify-content-between align-items-center {{ 'fw-bold' if not n.is_read }}">
+            <div>
+                <small class="text-muted">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                <span class="badge bg-{{ n.severity }} ms-2">{{ n.type }}</span>
+                <div class="mt-1">{{ n.title }}</div>
+                {% if n.message %}<small class="text-muted">{{ n.message }}</small>{% endif %}
+            </div>
+            <div class="d-flex gap-2">
+                {% if n.link_url %}<a href="{{ n.link_url }}" class="btn btn-sm btn-outline-info"><i class="fas fa-link"></i></a>{% endif %}
+                {% if not n.is_read %}
+                <form method="POST" action="{{ url_for('notifications.mark_read', notification_id=n.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-sm btn-outline-success"><i class="fas fa-check"></i></button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted"><p>No notifications yet.</p></div>
+    {% endif %}
+</div></div>
+{% endblock %}

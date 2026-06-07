@@ -5,3 +5,8 @@ from models.comment_result import CommentResult
 from models.report_export import ReportExport
 from models.job import Job
 from models.job_log import JobLog
+from models.worker_health import WorkerHealth
+from models.scheduled_analysis import ScheduledAnalysis
+from models.notification import Notification
+from models.scheduled_report import ScheduledReport
+from models.activity_log import ActivityLog

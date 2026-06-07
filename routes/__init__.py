@@ -3,3 +3,9 @@ from routes.dashboard_routes import dashboard_bp
 from routes.analysis_routes import analysis_bp
 from routes.export_routes import export_bp
 from routes.job_routes import job_bp
+from routes.schedule_routes import schedule_bp
+from routes.notification_routes import notification_bp
+from routes.activity_routes import activity_bp
+from routes.report_routes import report_bp
+from routes.trend_routes import trend_bp
+from routes.admin_routes import admin_bp

@@ -25,6 +25,9 @@ class Config:
     MAX_JOB_RUNTIME = int(os.environ.get('MAX_JOB_RUNTIME', '600'))
     JOB_HISTORY_RETENTION_DAYS = int(os.environ.get('JOB_HISTORY_RETENTION_DAYS', '30'))
     MAX_JOB_RETRIES = int(os.environ.get('MAX_JOB_RETRIES', '3'))
+    JOB_LOG_RETENTION_DAYS = int(os.environ.get('JOB_LOG_RETENTION_DAYS', '30'))
+    NOTIFICATION_RETENTION_DAYS = int(os.environ.get('NOTIFICATION_RETENTION_DAYS', '30'))
+    REPORT_RETENTION_DAYS = int(os.environ.get('REPORT_RETENTION_DAYS', '30'))
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reports')
 

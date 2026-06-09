@@ -13,3 +13,6 @@ from models.activity_log import ActivityLog
 from models.video_transcript import VideoTranscript
 from models.transcript_segment import TranscriptSegment
 from models.comment_context import CommentContext
+from models.entity import Entity
+from models.entity_mention import EntityMention
+from models.entity_context import EntityContext

@@ -37,6 +37,12 @@ class Config:
     TRANSCRIPT_RETENTION_DAYS = int(os.environ.get('TRANSCRIPT_RETENTION_DAYS', '90'))
     ENABLE_TRANSCRIPT_FALLBACK_DEMO = os.environ.get('ENABLE_TRANSCRIPT_FALLBACK_DEMO', 'true').lower() == 'true'
 
+    ENABLE_ENTITY_ANALYSIS = os.environ.get('ENABLE_ENTITY_ANALYSIS', 'true').lower() == 'true'
+    ENABLE_ENTITY_SENTIMENT = os.environ.get('ENABLE_ENTITY_SENTIMENT', 'true').lower() == 'true'
+    ENABLE_ENTITY_RISK = os.environ.get('ENABLE_ENTITY_RISK', 'true').lower() == 'true'
+    MAX_ENTITIES_PER_ANALYSIS = int(os.environ.get('MAX_ENTITIES_PER_ANALYSIS', '100'))
+    ENTITY_MIN_IMPORTANCE = int(os.environ.get('ENTITY_MIN_IMPORTANCE', '5'))
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

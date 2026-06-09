@@ -82,6 +82,11 @@ class ExportService:
             'Context Relevance Score',
             'Context Match Label',
             'Context Reason',
+            'Entities',
+            'Entity Types',
+            'Entity Sentiments',
+            'Entity Risk Scores',
+            'Entity Relevance Scores',
         ])
 
         for c in comments:
@@ -113,6 +118,11 @@ class ExportService:
                 ctx.transcript_relevance_score if ctx else '',
                 ctx.context_match_label.replace('_', ' ').title() if ctx else '',
                 ctx.reason if ctx else '',
+                '; '.join([em.entity.name for em in c.entity_mentions.all()]) if c.entity_mentions.count() > 0 else '',
+                '; '.join([em.entity.entity_type for em in c.entity_mentions.all()]) if c.entity_mentions.count() > 0 else '',
+                '; '.join([ec.entity_sentiment or '' for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
+                '; '.join([str(ec.entity_risk_score) for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
+                '; '.join([str(ec.entity_relevance_score) for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
             ])
 
         csv_content = output.getvalue()
@@ -209,6 +219,9 @@ class ExportService:
                 'context_relevance_score': ctx.transcript_relevance_score if ctx else None,
                 'context_match_label': ctx.context_match_label.replace('_', ' ').title() if ctx else None,
                 'context_reason': ctx.reason if ctx else None,
+                'entity_mentions': [{'name': em.entity.name, 'type': em.entity.entity_type} for em in c.entity_mentions.all()] if c.entity_mentions.count() > 0 else [],
+                'entity_sentiments': [{'entity': ec.entity.name if ec.entity else '', 'sentiment': ec.entity_sentiment, 'score': ec.entity_sentiment_score} for ec in c.entity_contexts.all()] if c.entity_contexts.count() > 0 else [],
+                'entity_risks': [{'entity': ec.entity.name if ec.entity else '', 'risk_score': ec.entity_risk_score} for ec in c.entity_contexts.all()] if c.entity_contexts.count() > 0 else [],
             })
 
         data = {
@@ -221,6 +234,12 @@ class ExportService:
             'comment_count': len(comments_data),
             'comments': comments_data,
         }
+
+        from models.entity import Entity
+        from services.entity_summary_service import EntitySummaryService
+        entity_list = Entity.query.filter_by(analysis_id=analysis_id).all()
+        if entity_list:
+            data['entity_summary'] = EntitySummaryService().generate_summary(entity_list, [], [])
 
         json_content = json.dumps(data, indent=2, default=str)
 

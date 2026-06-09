@@ -21,6 +21,15 @@ from services.transcript_processing_service import TranscriptProcessingService
 from services.context_matching_service import ContextMatchingService
 from models.video_transcript import VideoTranscript
 from models.comment_context import CommentContext
+from services.entity_extraction_service import EntityExtractionService
+from services.entity_resolution_service import EntityResolutionService
+from services.entity_intelligence_service import EntityIntelligenceService
+from services.entity_sentiment_service import EntitySentimentService
+from services.entity_risk_service import EntityRiskService
+from services.entity_summary_service import EntitySummaryService
+from models.entity import Entity
+from models.entity_mention import EntityMention
+from models.entity_context import EntityContext
 
 
 class AnalysisService:
@@ -36,6 +45,12 @@ class AnalysisService:
         self.transcript_service = TranscriptService()
         self.transcript_processor = TranscriptProcessingService()
         self.context_matcher = ContextMatchingService()
+        self.entity_extractor = EntityExtractionService()
+        self.entity_resolver = EntityResolutionService()
+        self.entity_intelligence = EntityIntelligenceService()
+        self.entity_sentiment = EntitySentimentService()
+        self.entity_risk = EntityRiskService()
+        self.entity_summary = EntitySummaryService()
 
     def create_youtube_analysis(self, user_id, video_url, comment_limit=100):
         video_id = self.youtube_service.extract_video_id(video_url)
@@ -144,6 +159,98 @@ class AnalysisService:
             except Exception as e:
                 current_app.logger.warning(f'Transcript processing failed: {e}')
 
+        entities = []
+        entity_sentiments = []
+        entity_risks = []
+        entity_summary_data = {}
+        comment_results_list = []
+        if current_app.config.get('ENABLE_ENTITY_ANALYSIS', True):
+            try:
+                entity_comments = comments if not is_demo else self.demo_service.get_comments()
+                comment_results_list = self.comment_repo.get_by_analysis_id(analysis.id)
+                extracted = self.entity_extractor.extract_from_texts(
+                    title=video_info.get('title', ''),
+                    description=video_info.get('description', ''),
+                    transcript_text=transcript_obj.transcript_text if transcript_obj else '',
+                    comments=entity_comments,
+                )
+                total_segments = transcript_obj.segment_count if transcript_obj and transcript_obj.is_available else 0
+                intelligence = self.entity_intelligence.compute_intelligence(
+                    extracted, len(entity_comments), total_segments
+                )
+
+                for ent_data in intelligence:
+                    entity = Entity(
+                        analysis_id=analysis.id,
+                        name=ent_data['name'],
+                        normalized_name=ent_data['normalized_name'],
+                        entity_type=ent_data['entity_type'],
+                        source=ent_data['source'],
+                        frequency=ent_data['frequency'],
+                        importance_score=ent_data['importance_score'],
+                    )
+                    db.session.add(entity)
+                    db.session.flush()
+                    entities.append(entity)
+
+                    if current_app.config.get('ENABLE_ENTITY_SENTIMENT', True) or current_app.config.get('ENABLE_ENTITY_RISK', True):
+                        for cr in comment_results_list:
+                            mention = EntityMention(
+                                entity_id=entity.id,
+                                comment_result_id=cr.id,
+                                mention_text=ent_data['name'],
+                                mention_source=ent_data['source'],
+                                context_snippet=cr.comment_text[:200],
+                            )
+                            db.session.add(mention)
+
+                db.session.commit()
+
+                new_entity_list = [{'name': e.normalized_name, 'entity_type': e.entity_type, 'source': e.source, 'frequency': e.frequency, 'importance_score': e.importance_score} for e in entities]
+
+                if current_app.config.get('ENABLE_ENTITY_SENTIMENT', True) and comment_results_list:
+                    entity_sentiments = self.entity_sentiment.compute_entity_sentiments(new_entity_list, comment_results_list)
+                    for es in entity_sentiments:
+                        for mention in es['mentions']:
+                            ec = EntityContext.query.filter_by(
+                                entity_id=[e.id for e in entities if e.normalized_name == es['entity_name']][0],
+                                comment_result_id=mention['comment_result_id'],
+                            ).first()
+                            if not ec:
+                                ec = EntityContext(
+                                    entity_id=[e.id for e in entities if e.normalized_name == es['entity_name']][0],
+                                    comment_result_id=mention['comment_result_id'],
+                                    entity_sentiment=mention['sentiment'],
+                                    entity_sentiment_score=mention['score'],
+                                    entity_risk_score=0.0,
+                                    entity_relevance_score=0.0,
+                                    entity_context_label=EntityContext.LABEL_UNKNOWN,
+                                    reason=mention['reason'],
+                                )
+                                db.session.add(ec)
+                    db.session.commit()
+
+                if current_app.config.get('ENABLE_ENTITY_RISK', True) and comment_results_list:
+                    entity_risks = self.entity_risk.compute_entity_risks(new_entity_list, comment_results_list)
+                    for er in entity_risks:
+                        for detail in er['details']:
+                            ec = EntityContext.query.filter_by(
+                                entity_id=[e.id for e in entities if e.normalized_name == er['entity_name']][0],
+                                comment_result_id=detail['comment_result_id'],
+                            ).first()
+                            if ec:
+                                ec.entity_risk_score = detail['risk_score']
+                                if ec.reason:
+                                    ec.reason += '; ' + '; '.join(detail['reasons'])
+                                else:
+                                    ec.reason = '; '.join(detail['reasons'])
+                    db.session.commit()
+
+                entity_summary_data = self.entity_summary.generate_summary(entities, entity_sentiments, entity_risks)
+
+            except Exception as e:
+                current_app.logger.warning(f'Entity intelligence failed: {e}')
+
         return {
             'success': True,
             'analysis_id': analysis.id,
@@ -195,11 +302,94 @@ class AnalysisService:
 
         self._generate_analysis_summary(analysis.id)
 
+        entities = []
+        entity_sentiments = []
+        entity_risks = []
+        entity_summary_data = {}
+        comment_results_list = []
+        if current_app.config.get('ENABLE_ENTITY_ANALYSIS', True):
+            try:
+                entity_comments = comments if not is_demo else self.reddit_demo.get_comments()
+                comment_results_list = self.comment_repo.get_by_analysis_id(analysis.id)
+                extracted = self.entity_extractor.extract_from_texts(
+                    title=post_info.get('title', ''),
+                    description=post_info.get('body', ''),
+                    comments=entity_comments,
+                )
+                intelligence = self.entity_intelligence.compute_intelligence(
+                    extracted, len(entity_comments), 0
+                )
+                for ent_data in intelligence:
+                    entity = Entity(
+                        analysis_id=analysis.id,
+                        name=ent_data['name'],
+                        normalized_name=ent_data['normalized_name'],
+                        entity_type=ent_data['entity_type'],
+                        source=ent_data['source'],
+                        frequency=ent_data['frequency'],
+                        importance_score=ent_data['importance_score'],
+                    )
+                    db.session.add(entity)
+                    db.session.flush()
+                    entities.append(entity)
+                    if current_app.config.get('ENABLE_ENTITY_SENTIMENT', True) or current_app.config.get('ENABLE_ENTITY_RISK', True):
+                        for cr in comment_results_list:
+                            mention = EntityMention(
+                                entity_id=entity.id,
+                                comment_result_id=cr.id,
+                                mention_text=ent_data['name'],
+                                mention_source=ent_data['source'],
+                                context_snippet=cr.comment_text[:200],
+                            )
+                            db.session.add(mention)
+                db.session.commit()
+                new_entity_list = [{'name': e.normalized_name, 'entity_type': e.entity_type, 'source': e.source, 'frequency': e.frequency, 'importance_score': e.importance_score} for e in entities]
+                if current_app.config.get('ENABLE_ENTITY_SENTIMENT', True) and comment_results_list:
+                    entity_sentiments = self.entity_sentiment.compute_entity_sentiments(new_entity_list, comment_results_list)
+                    for es in entity_sentiments:
+                        for mention in es['mentions']:
+                            ec = EntityContext.query.filter_by(
+                                entity_id=[e.id for e in entities if e.normalized_name == es['entity_name']][0],
+                                comment_result_id=mention['comment_result_id'],
+                            ).first()
+                            if not ec:
+                                ec = EntityContext(
+                                    entity_id=[e.id for e in entities if e.normalized_name == es['entity_name']][0],
+                                    comment_result_id=mention['comment_result_id'],
+                                    entity_sentiment=mention['sentiment'],
+                                    entity_sentiment_score=mention['score'],
+                                    entity_risk_score=0.0,
+                                    entity_relevance_score=0.0,
+                                    entity_context_label=EntityContext.LABEL_UNKNOWN,
+                                    reason=mention['reason'],
+                                )
+                                db.session.add(ec)
+                    db.session.commit()
+                if current_app.config.get('ENABLE_ENTITY_RISK', True) and comment_results_list:
+                    entity_risks = self.entity_risk.compute_entity_risks(new_entity_list, comment_results_list)
+                    for er in entity_risks:
+                        for detail in er['details']:
+                            ec = EntityContext.query.filter_by(
+                                entity_id=[e.id for e in entities if e.normalized_name == er['entity_name']][0],
+                                comment_result_id=detail['comment_result_id'],
+                            ).first()
+                            if ec:
+                                ec.entity_risk_score = detail['risk_score']
+                                if ec.reason:
+                                    ec.reason += '; ' + '; '.join(detail['reasons'])
+                                else:
+                                    ec.reason = '; '.join(detail['reasons'])
+                    db.session.commit()
+                entity_summary_data = self.entity_summary.generate_summary(entities, entity_sentiments, entity_risks)
+            except Exception as e:
+                current_app.logger.warning(f'Entity intelligence failed: {e}')
+
         return {
             'success': True,
             'analysis_id': analysis.id,
             'is_demo': is_demo,
             'comment_count': len(comments),
+            'entity_count': len(entities),
         }
 
     def _analyze_and_store_comment_v2(self, analysis_id, comment, all_texts):
@@ -387,6 +577,46 @@ class AnalysisService:
             transcript = youtube.transcript
             context_distribution = self.comment_repo.get_context_distribution(analysis_id)
 
+        entities_list = []
+        entity_summary_data_list = {}
+        if youtube or (analysis.analysis_type == 'reddit' and reddit):
+            entities_list = Entity.query.filter_by(analysis_id=analysis_id).order_by(Entity.importance_score.desc()).all()
+            if entities_list:
+                from services.entity_summary_service import EntitySummaryService
+                entity_sentiments_list = EntityContext.query.filter(
+                    EntityContext.entity_id.in_([e.id for e in entities_list])
+                ).with_entities(
+                    EntityContext.entity_id,
+                    EntityContext.entity_sentiment,
+                    EntityContext.entity_sentiment_score,
+                ).all()
+                entity_risks_list = EntityContext.query.filter(
+                    EntityContext.entity_id.in_([e.id for e in entities_list])
+                ).with_entities(
+                    EntityContext.entity_id,
+                    EntityContext.entity_risk_score,
+                ).all()
+                sent_group = {}
+                for eid, sent, score in entity_sentiments_list:
+                    if eid not in sent_group:
+                        sent_group[eid] = []
+                    sent_group[eid].append({'sentiment': sent, 'score': score})
+                risk_group = {}
+                for eid, score in entity_risks_list:
+                    if eid not in risk_group:
+                        risk_group[eid] = []
+                    risk_group[eid].append(score)
+                sentiments_for_summary = []
+                for e in entities_list:
+                    avg_s = round(sum(s['score'] for s in sent_group.get(e.id, [])) / max(len(sent_group.get(e.id, [])), 1), 1)
+                    overall = 'positive' if avg_s > 60 else 'negative' if avg_s < 40 else 'neutral'
+                    sentiments_for_summary.append({'entity_name': e.normalized_name, 'overall_sentiment': overall, 'average_score': avg_s})
+                risks_for_summary = []
+                for e in entities_list:
+                    avg_r = round(sum(risk_group.get(e.id, [0])) / max(len(risk_group.get(e.id, [])), 1), 1)
+                    risks_for_summary.append({'entity_name': e.normalized_name, 'average_risk_score': avg_r})
+                entity_summary_data_list = EntitySummaryService().generate_summary(entities_list, sentiments_for_summary, risks_for_summary)
+
         result = {
             'analysis': analysis,
             'comments': comments,
@@ -399,7 +629,11 @@ class AnalysisService:
             'comment_count': len(comments),
             'transcript': transcript,
             'context_distribution': context_distribution,
+            'entity_summary': entity_summary_data_list if youtube or (reddit and analysis.analysis_type == 'reddit') else {},
         }
+
+        entity_objects = Entity.query.filter_by(analysis_id=analysis_id).order_by(Entity.importance_score.desc()).limit(20).all()
+        result['entities'] = entity_objects if youtube or (reddit and analysis.analysis_type == 'reddit') else []
 
         if analysis.analysis_type == 'reddit' and reddit:
             result['reddit'] = reddit
@@ -452,6 +686,34 @@ class AnalysisService:
             if yt and yt.transcript:
                 transcript_count += 1
 
+        entity_count = 0
+        entity_risk_total = 0.0
+        entity_risk_count = 0
+        entity_type_counts = {'PERSON': 0, 'COMPANY': 0, 'PRODUCT': 0, 'LOCATION': 0, 'OTHER': 0}
+        entity_risk_low = 0
+        entity_risk_medium = 0
+        entity_risk_high = 0
+        entity_risk_critical = 0
+        for analysis in analyses:
+            ents = Entity.query.filter_by(analysis_id=analysis.id).all()
+            entity_count += len(ents)
+            for e in ents:
+                et = e.entity_type if e.entity_type in entity_type_counts else 'OTHER'
+                entity_type_counts[et] = entity_type_counts.get(et, 0) + e.frequency
+            ecs = EntityContext.query.join(Entity).filter(Entity.analysis_id == analysis.id).all()
+            for ec in ecs:
+                rs = ec.entity_risk_score or 0.0
+                entity_risk_total += rs
+                entity_risk_count += 1
+                if rs > 75:
+                    entity_risk_critical += 1
+                elif rs > 50:
+                    entity_risk_high += 1
+                elif rs > 25:
+                    entity_risk_medium += 1
+                else:
+                    entity_risk_low += 1
+
         community_health = 'Low'
         avg_all_risk = total_risk / max(analysis_count, 1)
         if avg_all_risk > 25:
@@ -473,6 +735,13 @@ class AnalysisService:
             'critical_comments': critical_count,
             'community_health': community_health,
             'transcript_count': transcript_count,
+            'entity_count': entity_count,
+            'avg_entity_risk': round(entity_risk_total / max(entity_risk_count, 1), 1),
+            'entity_type_counts': entity_type_counts,
+            'entity_risk_low': entity_risk_low,
+            'entity_risk_medium': entity_risk_medium,
+            'entity_risk_high': entity_risk_high,
+            'entity_risk_critical': entity_risk_critical,
         }
 
     def get_all_user_analyses_with_data(self, user_id, limit=None):
@@ -501,6 +770,7 @@ class AnalysisService:
                 is_demo = False
                 platform = 'unknown'
             has_transcript = bool(yt and yt.transcript) if platform == 'youtube' else False
+            entity_count = Entity.query.filter_by(analysis_id=a.id).count()
             results.append({
                 'id': a.id,
                 'title': title,
@@ -510,6 +780,7 @@ class AnalysisService:
                 'avg_risk': averages['avg_risk'],
                 'is_demo': is_demo,
                 'has_transcript': has_transcript,
+                'entity_count': entity_count,
                 'created_at': a.created_at,
             })
         return results

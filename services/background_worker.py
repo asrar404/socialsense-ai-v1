@@ -96,7 +96,16 @@ class BackgroundWorker:
 
                 self._check_cancelled(job_id)
 
-                self.job_repo.update_progress(job_id, 85, 'Saving Results')
+                self.job_repo.update_progress(job_id, 92, 'Saving Results')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 87, 'Extracting Entities')
+                self.log_repo.create_log(job_id, 'INFO', 'Extracting and analyzing entities.', 'Entity')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 90, 'Analyzing Entity Context')
 
                 if job.platform == 'youtube':
                     result = self.analysis_service.create_youtube_analysis(

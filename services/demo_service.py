@@ -115,3 +115,48 @@ class DemoService:
 
     def get_demo_topics(self):
         return ['technology', 'product review', 'design', 'battery life', 'pricing']
+
+    def get_demo_entities(self):
+        return [
+            {'name': 'Elon Musk', 'normalized_name': 'Elon Musk', 'entity_type': 'PERSON', 'source': 'combined', 'frequency': 8, 'importance_score': 95.0, 'relevance_score': 78.5, 'relationship': 'discussed_across_sources'},
+            {'name': 'Tesla', 'normalized_name': 'Tesla', 'entity_type': 'COMPANY', 'source': 'combined', 'frequency': 6, 'importance_score': 80.0, 'relevance_score': 65.0, 'relationship': 'discussed_across_sources'},
+            {'name': 'SpaceX', 'normalized_name': 'SpaceX', 'entity_type': 'COMPANY', 'source': 'transcript', 'frequency': 3, 'importance_score': 45.0, 'relevance_score': 35.0, 'relationship': 'discussed_in_transcript'},
+            {'name': 'Model 3', 'normalized_name': 'Model 3', 'entity_type': 'PRODUCT', 'source': 'comment', 'frequency': 4, 'importance_score': 55.0, 'relevance_score': 42.0, 'relationship': 'discussed_in_comments'},
+            {'name': 'Joe Rogan', 'normalized_name': 'Joe Rogan', 'entity_type': 'PERSON', 'source': 'transcript', 'frequency': 2, 'importance_score': 30.0, 'relevance_score': 22.0, 'relationship': 'discussed_in_transcript'},
+        ]
+
+    def get_demo_entity_sentiments(self):
+        return [
+            {'entity_name': 'Elon Musk', 'overall_sentiment': 'positive', 'average_score': 72.0},
+            {'entity_name': 'Tesla', 'overall_sentiment': 'positive', 'average_score': 78.0},
+            {'entity_name': 'SpaceX', 'overall_sentiment': 'positive', 'average_score': 65.0},
+            {'entity_name': 'Model 3', 'overall_sentiment': 'neutral', 'average_score': 52.0},
+            {'entity_name': 'Joe Rogan', 'overall_sentiment': 'neutral', 'average_score': 55.0},
+        ]
+
+    def get_demo_entity_risks(self):
+        return [
+            {'entity_name': 'Elon Musk', 'average_risk_score': 35.0},
+            {'entity_name': 'Tesla', 'average_risk_score': 20.0},
+            {'entity_name': 'SpaceX', 'average_risk_score': 5.0},
+            {'entity_name': 'Model 3', 'average_risk_score': 10.0},
+            {'entity_name': 'Joe Rogan', 'average_risk_score': 15.0},
+        ]
+
+    def get_demo_entity_summary(self):
+        return {
+            'total_entities': 5,
+            'most_discussed_person': 'Elon Musk',
+            'most_discussed_company': 'Tesla',
+            'most_discussed_product': 'Model 3',
+            'most_controversial_entity': 'Elon Musk',
+            'most_positive_entity': 'Tesla',
+            'most_negative_entity': 'Joe Rogan',
+            'entity_type_distribution': {'PERSON': 10, 'COMPANY': 9, 'PRODUCT': 4},
+        }
+
+    def get_demo_entity_hourly(self):
+        return [0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 9, 8, 7, 6, 4, 2]
+
+    def get_demo_entity_type_counts(self):
+        return [{'type': 'PERSON', 'count': 10}, {'type': 'COMPANY', 'count': 9}, {'type': 'PRODUCT', 'count': 4}]

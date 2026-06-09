@@ -103,6 +103,10 @@
                             <div class="fw-bold text-warning">{{ stats.avg_bot }}</div>
                         </div>
                     </div>
+                    <div class="col-6">
+                        <small class="text-muted">Entity Risk</small>
+                        <div class="{% if stats.avg_entity_risk|default(0) > 50 %}text-danger{% elif stats.avg_entity_risk|default(0) > 25 %}text-warning{% else %}text-success{% endif %} fw-bold">{{ stats.avg_entity_risk|default(0) }}</div>
+                    </div>
                     <div class="col-3 col-md-2">
                         <div class="p-2 bg-dark rounded">
                             <div class="small text-muted">Avg Risk</div>
@@ -116,6 +120,19 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4 col-lg-3">
+        <div class="card border-secondary h-100 bg-dark">
+            <div class="card-body text-center">
+                <div class="text-info mb-2"><i class="fas fa-building fa-2x"></i></div>
+                <h5 class="card-title text-info">Entities</h5>
+                <p class="display-6 fw-bold text-white">{{ stats.entity_count or 0 }}</p>
+                <small class="text-muted">Total detected</small>
             </div>
         </div>
     </div>
@@ -162,6 +179,29 @@
             </div>
             <div class="card-body">
                 <canvas id="spamChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6 mb-4">
+        <div class="card border-secondary bg-dark h-100">
+            <div class="card-header bg-dark border-secondary">
+                <h6 class="mb-0"><i class="fas fa-tag me-2 text-info"></i>Entity Type Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="entityTypeChart"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-4">
+        <div class="card border-secondary bg-dark h-100">
+            <div class="card-header bg-dark border-secondary">
+                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-info"></i>Entity Risk Distribution</h6>
+            </div>
+            <div class="card-body">
+                <canvas id="entityRiskChart"></canvas>
             </div>
         </div>
     </div>
@@ -282,6 +322,36 @@ document.addEventListener('DOMContentLoaded', function() {
     initChart('spamChart', 'bar',
         ['Low', 'Medium', 'High', 'Critical'], [0, 0, 0, 0],
         ['#198754', '#ffc107', '#fd7e14', '#dc3545']);
+
+    const entityTypeChart = document.getElementById('entityTypeChart');
+    if (entityTypeChart) {
+        new Chart(entityTypeChart, {
+            type: 'doughnut',
+            data: {
+                labels: ['PERSON', 'COMPANY', 'PRODUCT', 'LOCATION', 'OTHER'],
+                datasets: [{
+                    data: [{{ stats.entity_type_counts.PERSON|default(0) }}, {{ stats.entity_type_counts.COMPANY|default(0) }}, {{ stats.entity_type_counts.PRODUCT|default(0) }}, {{ stats.entity_type_counts.LOCATION|default(0) }}, {{ stats.entity_type_counts.OTHER|default(0) }}],
+                    backgroundColor: ['#0d6efd', '#6f42c1', '#fd7e14', '#20c997', '#6c757d'],
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#e9ecef' } } } }
+        });
+    }
+    const entityRiskChart = document.getElementById('entityRiskChart');
+    if (entityRiskChart) {
+        new Chart(entityRiskChart, {
+            type: 'bar',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Critical'],
+                datasets: [{
+                    label: 'Entity Risk',
+                    data: [{{ stats.entity_risk_low|default(0) }}, {{ stats.entity_risk_medium|default(0) }}, {{ stats.entity_risk_high|default(0) }}, {{ stats.entity_risk_critical|default(0) }}],
+                    backgroundColor: ['#198754', '#ffc107', '#fd7e14', '#dc3545'],
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#2c3034' } }, x: { grid: { display: false } } } }
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -90,6 +90,12 @@ class BackgroundWorker:
 
                 self._check_cancelled(job_id)
 
+                self.job_repo.update_progress(job_id, 80, 'Processing Transcript')
+                if job.platform == 'youtube':
+                    self.log_repo.create_log(job_id, 'INFO', 'Fetching and analyzing video transcript.', 'Transcript')
+
+                self._check_cancelled(job_id)
+
                 self.job_repo.update_progress(job_id, 85, 'Saving Results')
 
                 if job.platform == 'youtube':

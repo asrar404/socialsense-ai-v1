@@ -1,4 +1,5 @@
 from models.comment_result import CommentResult
+from models.comment_context import CommentContext
 from repositories.base import BaseRepository
 from database import db
 
@@ -64,3 +65,18 @@ class CommentResultRepository(BaseRepository):
             CommentResult.analysis_id == analysis_id
         ).group_by(CommentResult.risk_level).all()
         return {r[0]: r[1] for r in results}
+
+    def get_context_distribution(self, analysis_id):
+        from sqlalchemy import join
+        results = db.session.query(
+            CommentContext.context_match_label,
+            db.func.count(CommentContext.id)
+        ).select_from(
+            join(CommentResult, CommentContext, CommentResult.id == CommentContext.comment_result_id)
+        ).filter(
+            CommentResult.analysis_id == analysis_id
+        ).group_by(CommentContext.context_match_label).all()
+        dist = {'highly_relevant': 0, 'relevant': 0, 'partially_relevant': 0, 'off_topic': 0, 'unknown': 0}
+        for label, count in results:
+            dist[label] = count
+        return dist

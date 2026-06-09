@@ -191,6 +191,105 @@
     </div>
 </div>
 
+{% if data.youtube %}
+<div class="card border-info border-opacity-25 mb-4">
+    <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-closed-captioning me-2"></i>Transcript Intelligence</h6>
+        {% if data.transcript %}
+        <span class="badge bg-{{ 'success' if data.transcript.is_real else 'warning' if data.transcript.is_fallback or data.transcript.is_demo_transcript else 'secondary' }}">
+            {{ data.transcript.friendly_status }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if data.transcript and data.transcript.is_available %}
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="bg-dark rounded p-3 h-100">
+                    <h6 class="small text-muted mb-2"><i class="fas fa-tags me-1"></i>Topics</h6>
+                    <div>
+                        {% if data.transcript.topics %}
+                        {% for t in data.transcript.topics.split(', ') %}
+                        <span class="badge bg-info text-dark me-1 mb-1">{{ t }}</span>
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-muted small">No topics extracted</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-2">
+                        <span class="text-muted small">
+                            {{ data.transcript.word_count }} words,
+                            {{ data.transcript.segment_count }} segments
+                            {% if data.transcript.language %}
+                            &middot; {{ data.transcript.language }}
+                            {% endif %}
+                            {% if data.transcript.duration_seconds %}
+                            &middot; {{ (data.transcript.duration_seconds / 60)|round(1) }} min
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="bg-dark rounded p-3 h-100">
+                    <h6 class="small text-muted mb-2"><i class="fas fa-chart-bar me-1"></i>Context Match Distribution</h6>
+                    {% if data.context_distribution %}
+                    <div class="row g-1 text-center">
+                        <div class="col-3">
+                            <div class="small fw-bold text-success">{{ data.context_distribution.highly_relevant }}</div>
+                            <div class="small text-muted">High</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="small fw-bold text-info">{{ data.context_distribution.relevant }}</div>
+                            <div class="small text-muted">Relevant</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="small fw-bold text-warning">{{ data.context_distribution.partially_relevant }}</div>
+                            <div class="small text-muted">Partial</div>
+                        </div>
+                        <div class="col-3">
+                            <div class="small fw-bold text-danger">{{ data.context_distribution.off_topic }}</div>
+                            <div class="small text-muted">Off-Topic</div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <span class="text-muted small">No context data available</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if data.transcript.summary %}
+        <div class="mt-3 bg-dark rounded p-3">
+            <h6 class="small text-muted mb-1"><i class="fas fa-align-left me-1"></i>Transcript Summary</h6>
+            <p class="small mb-0">{{ data.transcript.summary }}</p>
+        </div>
+        {% endif %}
+        {% elif data.transcript and data.transcript.failure_reason %}
+        <div class="text-center py-3">
+            <i class="fas fa-exclamation-triangle text-warning fa-2x mb-2"></i>
+            <p class="mb-1 text-warning">{{ data.transcript.friendly_status }}</p>
+            <p class="small text-muted mb-0">
+                Comment analysis is still complete, but transcript-based context scoring is not available.
+            </p>
+        </div>
+        {% elif data.transcript and data.transcript.source == 'unavailable' and not data.transcript.failure_reason %}
+        <div class="text-center py-3">
+            <i class="fas fa-closed-captioning text-muted fa-2x mb-2"></i>
+            <p class="mb-1 text-muted">Transcript is not available for this video.</p>
+            <p class="small text-muted mb-0">
+                Comment analysis is still complete without transcript context.
+            </p>
+        </div>
+        {% else %}
+        <div class="text-center py-3">
+            <i class="fas fa-closed-captioning text-muted fa-2x mb-2"></i>
+            <p class="text-muted mb-0">Transcript intelligence was not enabled for this analysis.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card border-secondary h-100">
@@ -360,6 +459,7 @@
                         <th>Bot</th>
                         <th>Risk</th>
                         <th>Level</th>
+                        <th>Context</th>
                         <th>Reasons</th>
                     </tr>
                 </thead>
@@ -409,6 +509,15 @@
                             </span>
                         </td>
                         <td>
+                            {% if c.context %}
+                            {% set ctx_label = c.context.context_match_label %}
+                            {% set ctx_badge = 'success' if ctx_label == 'highly_relevant' else 'info' if ctx_label == 'relevant' else 'warning' if ctx_label == 'partially_relevant' else 'danger' %}
+                            <span class="badge bg-{{ ctx_badge }}">{{ ctx_label.replace('_', ' ')|title }}</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
                             {% if c.spam_explanation and c.spam_explanation != 'No spam indicators detected' %}
                             <small class="text-muted d-block">Spam: {{ c.spam_explanation|truncate(40) }}</small>
                             {% endif %}
@@ -445,6 +554,9 @@
             {% endif %}
             {% if data.averages.avg_ai_like > 30 %}
             <li>Possible AI-generated comments detected. Review for authenticity.</li>
+            {% endif %}
+            {% if data.transcript and data.transcript.source != 'unavailable' %}
+            <li>Transcript intelligence enabled — comments are scored against video content for context relevance.</li>
             {% endif %}
             <li>Export the full report as CSV or JSON for offline analysis and record-keeping.</li>
         </ul>

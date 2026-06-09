@@ -31,6 +31,12 @@ class Config:
 
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'reports')
 
+    ENABLE_TRANSCRIPT_ANALYSIS = os.environ.get('ENABLE_TRANSCRIPT_ANALYSIS', 'true').lower() == 'true'
+    TRANSCRIPT_LANGUAGE_PRIORITY = os.environ.get('TRANSCRIPT_LANGUAGE_PRIORITY', 'en')
+    TRANSCRIPT_CACHE_ENABLED = os.environ.get('TRANSCRIPT_CACHE_ENABLED', 'true').lower() == 'true'
+    TRANSCRIPT_RETENTION_DAYS = int(os.environ.get('TRANSCRIPT_RETENTION_DAYS', '90'))
+    ENABLE_TRANSCRIPT_FALLBACK_DEMO = os.environ.get('ENABLE_TRANSCRIPT_FALLBACK_DEMO', 'true').lower() == 'true'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

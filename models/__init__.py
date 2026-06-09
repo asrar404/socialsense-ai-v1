@@ -10,3 +10,6 @@ from models.scheduled_analysis import ScheduledAnalysis
 from models.notification import Notification
 from models.scheduled_report import ScheduledReport
 from models.activity_log import ActivityLog
+from models.video_transcript import VideoTranscript
+from models.transcript_segment import TranscriptSegment
+from models.comment_context import CommentContext

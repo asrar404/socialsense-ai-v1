@@ -93,3 +93,25 @@ class DemoService:
 
     def get_reddit_comments(self):
         return RedditDemoService().get_comments()
+
+    def get_demo_transcript_segments(self):
+        return [
+            {'start': 0.0, 'end': 4.0, 'text': 'Welcome to this video where we explore the latest technology trends.'},
+            {'start': 4.0, 'end': 8.5, 'text': 'Today we are reviewing a brand new product that has generated a lot of discussion.'},
+            {'start': 8.5, 'end': 13.0, 'text': 'The product features an innovative design with high quality materials.'},
+            {'start': 13.0, 'end': 18.0, 'text': 'Many users have reported positive experiences with the battery life.'},
+            {'start': 18.0, 'end': 23.5, 'text': 'However there are some concerns about the pricing strategy.'},
+            {'start': 23.5, 'end': 28.0, 'text': 'The customer support team has been responsive to feedback.'},
+            {'start': 28.0, 'end': 33.0, 'text': 'Overall this product represents a significant step forward in the industry.'},
+            {'start': 33.0, 'end': 38.0, 'text': 'We recommend watching the full review for more detailed analysis.'},
+        ]
+
+    def get_demo_transcript_full_text(self):
+        return ' '.join(s['text'] for s in self.get_demo_transcript_segments())
+
+    def get_demo_keywords(self):
+        return [('technology', 8), ('product', 6), ('review', 4), ('design', 3), ('quality', 3),
+                ('battery', 3), ('pricing', 2), ('support', 2), ('feedback', 2), ('industry', 2)]
+
+    def get_demo_topics(self):
+        return ['technology', 'product review', 'design', 'battery life', 'pricing']

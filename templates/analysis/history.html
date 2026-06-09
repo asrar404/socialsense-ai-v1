@@ -21,6 +21,7 @@
                         <th>Platform</th>
                         <th>Comments</th>
                         <th>Avg Risk</th>
+                        <th>Transcript</th>
                         <th>Mode</th>
                         <th>Date</th>
                         <th>Actions</th>
@@ -42,6 +43,15 @@
                         <td>
                             {% set level = 'success' if a.avg_risk <= 25 else 'warning' if a.avg_risk <= 50 else 'danger' %}
                             <span class="badge bg-{{ level }}">{{ a.avg_risk }}</span>
+                        </td>
+                        <td>
+                            {% if a.has_transcript %}
+                            <span class="badge bg-info" title="Transcript available"><i class="fas fa-closed-captioning"></i></span>
+                            {% elif a.platform == 'youtube' %}
+                            <span class="text-muted small">—</span>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if a.is_demo %}

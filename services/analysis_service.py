@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from flask import current_app
 from database import db
 from models.analysis import Analysis, YouTubeAnalysis
@@ -15,6 +16,11 @@ from services.toxicity_service import ToxicityService
 from services.spam_service import SpamService
 from services.bot_detection_service import BotDetectionService
 from services.risk_engine import RiskEngine
+from services.transcript_service import TranscriptService
+from services.transcript_processing_service import TranscriptProcessingService
+from services.context_matching_service import ContextMatchingService
+from models.video_transcript import VideoTranscript
+from models.comment_context import CommentContext
 
 
 class AnalysisService:
@@ -27,6 +33,9 @@ class AnalysisService:
         self.reddit_demo = RedditDemoService()
         self.demo_service = DemoService()
         self.risk_scorer = RiskScoringService()
+        self.transcript_service = TranscriptService()
+        self.transcript_processor = TranscriptProcessingService()
+        self.context_matcher = ContextMatchingService()
 
     def create_youtube_analysis(self, user_id, video_url, comment_limit=100):
         video_id = self.youtube_service.extract_video_id(video_url)
@@ -92,11 +101,55 @@ class AnalysisService:
 
         self._generate_analysis_summary(analysis.id)
 
+        transcript_obj = None
+        if current_app.config.get('ENABLE_TRANSCRIPT_ANALYSIS', True):
+            try:
+                if is_demo:
+                    transcript_obj = self.transcript_service.store_demo_transcript(yt_analysis.id, video_id)
+                else:
+                    lang = current_app.config.get('TRANSCRIPT_LANGUAGE_PRIORITY', 'en')
+                    transcript_obj = self.transcript_service.fetch_and_store(yt_analysis.id, video_id, language=lang)
+
+                if transcript_obj and not transcript_obj.is_available and current_app.config.get('ENABLE_TRANSCRIPT_FALLBACK_DEMO', False):
+                    fallback_comments = comments if not is_demo else None
+                    transcript_obj = self.transcript_service.store_fallback_generated(
+                        yt_analysis.id, video_id,
+                        title=video_info.get('title', ''),
+                        description=video_info.get('description', ''),
+                        comments=fallback_comments,
+                    )
+
+                if transcript_obj and transcript_obj.is_available:
+                    top_keywords = self.transcript_processor.extract_keywords(transcript_obj.transcript_text or '', 20)
+                    top_phrases = self.transcript_processor.extract_phrases(transcript_obj.transcript_text or '', 2, 4)
+                    segments = self.transcript_service.get_segments(transcript_obj.id)
+
+                    transcript_obj.topics = ', '.join(self.transcript_processor.get_topics(
+                        [seg.text for seg in segments], 5))
+                    transcript_obj.summary = self._generate_transcript_summary(transcript_obj.transcript_text or '')
+
+                    comment_results = self.comment_repo.get_by_analysis_id(analysis.id)
+                    for cr in comment_results:
+                        context_data = self.context_matcher.compute_context(
+                            cr.comment_text,
+                            transcript_obj.transcript_text or '',
+                            segments,
+                            top_keywords,
+                            top_phrases,
+                        )
+                        self.context_matcher.create_comment_context(cr.id, transcript_obj.id, context_data)
+
+                    transcript_obj.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+                    db.session.commit()
+            except Exception as e:
+                current_app.logger.warning(f'Transcript processing failed: {e}')
+
         return {
             'success': True,
             'analysis_id': analysis.id,
             'is_demo': is_demo,
             'comment_count': len(comments),
+            'transcript_available': bool(transcript_obj and transcript_obj.is_available),
         }
 
     def create_reddit_analysis(self, user_id, post_id, subreddit=None, input_type='post', comment_limit=100):
@@ -328,6 +381,12 @@ class AnalysisService:
         youtube = analysis.youtube_analysis
         reddit = analysis.reddit_analysis
 
+        transcript = None
+        context_distribution = None
+        if youtube and youtube.transcript:
+            transcript = youtube.transcript
+            context_distribution = self.comment_repo.get_context_distribution(analysis_id)
+
         result = {
             'analysis': analysis,
             'comments': comments,
@@ -338,6 +397,8 @@ class AnalysisService:
             'risk_distribution': risk_dist,
             'averages': averages,
             'comment_count': len(comments),
+            'transcript': transcript,
+            'context_distribution': context_distribution,
         }
 
         if analysis.analysis_type == 'reddit' and reddit:
@@ -372,6 +433,7 @@ class AnalysisService:
         total_bot = 0
         analysis_count = 0
         critical_count = 0
+        transcript_count = 0
 
         for analysis in analyses:
             averages = self.comment_repo.get_average_scores_by_analysis(analysis.id)
@@ -386,6 +448,9 @@ class AnalysisService:
                 total_risk += averages['avg_risk']
                 total_bot += averages.get('avg_bot', 0)
                 analysis_count += 1
+            yt = analysis.youtube_analysis
+            if yt and yt.transcript:
+                transcript_count += 1
 
         community_health = 'Low'
         avg_all_risk = total_risk / max(analysis_count, 1)
@@ -407,6 +472,7 @@ class AnalysisService:
             'avg_risk': round(total_risk / max(analysis_count, 1), 1),
             'critical_comments': critical_count,
             'community_health': community_health,
+            'transcript_count': transcript_count,
         }
 
     def get_all_user_analyses_with_data(self, user_id, limit=None):
@@ -434,6 +500,7 @@ class AnalysisService:
                 identifier = 'N/A'
                 is_demo = False
                 platform = 'unknown'
+            has_transcript = bool(yt and yt.transcript) if platform == 'youtube' else False
             results.append({
                 'id': a.id,
                 'title': title,
@@ -442,6 +509,22 @@ class AnalysisService:
                 'comment_count': comment_count,
                 'avg_risk': averages['avg_risk'],
                 'is_demo': is_demo,
+                'has_transcript': has_transcript,
                 'created_at': a.created_at,
             })
         return results
+
+    def _generate_transcript_summary(self, transcript_text):
+        if not transcript_text:
+            return None
+        words = transcript_text.split()
+        word_count = len(words)
+        if word_count <= 100:
+            return transcript_text
+        sentences = transcript_text.replace('!', '.').replace('?', '.').split('.')
+        sentences = [s.strip() for s in sentences if len(s.strip()) > 10]
+        key_sentences = sentences[:5]
+        summary = '. '.join(key_sentences)
+        if not summary.endswith('.'):
+            summary += '.'
+        return summary

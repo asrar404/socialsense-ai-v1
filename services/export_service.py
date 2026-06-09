@@ -79,10 +79,14 @@ class ExportService:
             'Risk Level',
             'Risk Explanation',
             'Recommendation',
+            'Context Relevance Score',
+            'Context Match Label',
+            'Context Reason',
         ])
 
         for c in comments:
             published = c.published_at.strftime('%Y-%m-%d %H:%M:%S UTC') if c.published_at else ''
+            ctx = c.context
             writer.writerow([
                 c.comment_text,
                 c.author or '',
@@ -106,6 +110,9 @@ class ExportService:
                 c.risk_level,
                 c.risk_explanation or '',
                 c.recommendation or '',
+                ctx.transcript_relevance_score if ctx else '',
+                ctx.context_match_label.replace('_', ' ').title() if ctx else '',
+                ctx.reason if ctx else '',
             ])
 
         csv_content = output.getvalue()
@@ -173,6 +180,7 @@ class ExportService:
 
         comments_data = []
         for c in comments:
+            ctx = c.context
             comments_data.append({
                 'comment_text': c.comment_text,
                 'author': c.author,
@@ -198,6 +206,9 @@ class ExportService:
                 'risk_level': c.risk_level,
                 'risk_explanation': c.risk_explanation,
                 'recommendation': c.recommendation,
+                'context_relevance_score': ctx.transcript_relevance_score if ctx else None,
+                'context_match_label': ctx.context_match_label.replace('_', ' ').title() if ctx else None,
+                'context_reason': ctx.reason if ctx else None,
             })
 
         data = {

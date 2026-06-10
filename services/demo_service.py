@@ -160,3 +160,92 @@ class DemoService:
 
     def get_demo_entity_type_counts(self):
         return [{'type': 'PERSON', 'count': 10}, {'type': 'COMPANY', 'count': 9}, {'type': 'PRODUCT', 'count': 4}]
+
+    def get_demo_channel_intelligence(self):
+        return {
+            'total_videos_analyzed': 3,
+            'total_entities_detected': 15,
+            'avg_sentiment': 62.5,
+            'avg_risk': 18.3,
+        }
+
+    def get_demo_context_intelligence(self):
+        return {
+            'historical_context': 85,
+            'entity_recurrence': 72,
+            'topic_recurrence': 68,
+            'channel_relevance': 78,
+            'trend_score': 62,
+            'trend_direction': 'positive',
+            'channel_data': {
+                'total_videos_analyzed': 3,
+                'total_entities_detected': 15,
+                'avg_sentiment': 62.5,
+                'avg_risk': 18.3,
+            },
+            'trends': {
+                'previous_video_count': 2,
+                'sentiment_trend': 'improving',
+                'risk_trend': 'improving',
+                'avg_sentiment_change': 12.0,
+                'avg_risk_change': -8.0,
+                'entity_count_trend': 3,
+            },
+            'top_entities': [
+                {'normalized_name': 'Tesla', 'entity_type': 'COMPANY', 'appearances': 3, 'avg_sentiment': 72.0, 'avg_risk': 15.0},
+                {'normalized_name': 'Elon Musk', 'entity_type': 'PERSON', 'appearances': 3, 'avg_sentiment': 65.0, 'avg_risk': 30.0},
+                {'normalized_name': 'SpaceX', 'entity_type': 'COMPANY', 'appearances': 2, 'avg_sentiment': 68.0, 'avg_risk': 5.0},
+            ],
+            'recurring_topics': [
+                {'topic': 'technology', 'appearances': 3},
+                {'topic': 'product review', 'appearances': 2},
+                {'topic': 'innovation', 'appearances': 2},
+            ],
+        }
+
+    def get_demo_trend_statistics(self):
+        return {
+            'previous_video_count': 2,
+            'sentiment_trend': 'improving',
+            'risk_trend': 'improving',
+            'avg_sentiment_change': 12.0,
+            'avg_risk_change': -8.0,
+            'entity_count_trend': 3,
+        }
+
+    def get_demo_video_history(self):
+        return [
+            {
+                'video_id': 'abc123',
+                'video_title': 'Tesla Earnings Report',
+                'entity_count': 8,
+                'avg_sentiment': 58.0,
+                'avg_risk': 22.0,
+            },
+            {
+                'video_id': 'def456',
+                'video_title': 'Tesla Launch Event',
+                'entity_count': 6,
+                'avg_sentiment': 65.0,
+                'avg_risk': 15.0,
+            },
+        ]
+
+    def get_demo_entity_history(self):
+        return [
+            {'normalized_name': 'Tesla', 'entity_type': 'COMPANY', 'appearances': 3, 'avg_sentiment': 72.0, 'avg_risk': 15.0},
+            {'normalized_name': 'Elon Musk', 'entity_type': 'PERSON', 'appearances': 3, 'avg_sentiment': 65.0, 'avg_risk': 30.0},
+            {'normalized_name': 'SpaceX', 'entity_type': 'COMPANY', 'appearances': 2, 'avg_sentiment': 68.0, 'avg_risk': 5.0},
+            {'normalized_name': 'Model 3', 'entity_type': 'PRODUCT', 'appearances': 2, 'avg_sentiment': 52.0, 'avg_risk': 10.0},
+        ]
+
+    def get_demo_video_comparison(self):
+        return {
+            'has_history': True,
+            'sentiment_vs_avg': 12.5,
+            'risk_vs_avg': -8.0,
+            'entity_count_vs_avg': 2.0,
+            'channel_avg_sentiment': 58.0,
+            'channel_avg_risk': 20.0,
+            'channel_avg_entity_count': 6.0,
+        }

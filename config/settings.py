@@ -43,6 +43,11 @@ class Config:
     MAX_ENTITIES_PER_ANALYSIS = int(os.environ.get('MAX_ENTITIES_PER_ANALYSIS', '100'))
     ENTITY_MIN_IMPORTANCE = int(os.environ.get('ENTITY_MIN_IMPORTANCE', '5'))
 
+    ENABLE_CHANNEL_INTELLIGENCE = os.environ.get('ENABLE_CHANNEL_INTELLIGENCE', 'true').lower() == 'true'
+    ENABLE_HISTORICAL_CONTEXT = os.environ.get('ENABLE_HISTORICAL_CONTEXT', 'true').lower() == 'true'
+    MAX_HISTORY_VIDEOS = int(os.environ.get('MAX_HISTORY_VIDEOS', '100'))
+    MAX_ENTITY_HISTORY = int(os.environ.get('MAX_ENTITY_HISTORY', '500'))
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

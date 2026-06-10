@@ -56,6 +56,11 @@ class ExportService:
                 writer.writerow([line])
             writer.writerow([])
 
+        from models.video_context_history import VideoContextHistory
+        vch = VideoContextHistory.query.filter_by(analysis_id=analysis_id).first()
+        history_context_score = vch.avg_sentiment if vch else ''
+        history_risk_score = vch.avg_risk if vch else ''
+
         writer.writerow([
             'Comment',
             'Author',
@@ -87,6 +92,11 @@ class ExportService:
             'Entity Sentiments',
             'Entity Risk Scores',
             'Entity Relevance Scores',
+            'Historical Context Score',
+            'Historical Risk Score',
+            'Entity Recurrence Score',
+            'Topic Recurrence Score',
+            'Trend Direction',
         ])
 
         for c in comments:
@@ -123,6 +133,11 @@ class ExportService:
                 '; '.join([ec.entity_sentiment or '' for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
                 '; '.join([str(ec.entity_risk_score) for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
                 '; '.join([str(ec.entity_relevance_score) for ec in c.entity_contexts.all()]) if c.entity_contexts.count() > 0 else '',
+                history_context_score,
+                history_risk_score,
+                '',
+                '',
+                '',
             ])
 
         csv_content = output.getvalue()
@@ -240,6 +255,32 @@ class ExportService:
         entity_list = Entity.query.filter_by(analysis_id=analysis_id).all()
         if entity_list:
             data['entity_summary'] = EntitySummaryService().generate_summary(entity_list, [], [])
+
+        from models.video_context_history import VideoContextHistory
+        from models.entity_history import EntityHistory
+        from models.channel_context import ChannelContext
+        vch = VideoContextHistory.query.filter_by(analysis_id=analysis_id).first()
+        if vch:
+            data['video_context_history'] = {
+                'video_id': vch.video_id,
+                'channel_id': vch.channel_id,
+                'entity_count': vch.entity_count,
+                'avg_sentiment': vch.avg_sentiment,
+                'avg_risk': vch.avg_risk,
+                'top_entities': vch.top_entities,
+            }
+        ehs = EntityHistory.query.filter_by(analysis_id=analysis_id).all()
+        if ehs:
+            data['entity_history'] = [
+                {
+                    'normalized_name': eh.normalized_name,
+                    'entity_type': eh.entity_type,
+                    'sentiment_score': eh.sentiment_score,
+                    'risk_score': eh.risk_score,
+                    'mention_count': eh.mention_count,
+                }
+                for eh in ehs
+            ]
 
         json_content = json.dumps(data, indent=2, default=str)
 

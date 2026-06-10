@@ -30,6 +30,13 @@ from services.entity_summary_service import EntitySummaryService
 from models.entity import Entity
 from models.entity_mention import EntityMention
 from models.entity_context import EntityContext
+from models.channel_context import ChannelContext
+from models.video_context_history import VideoContextHistory
+from models.entity_history import EntityHistory
+from services.channel_context_service import ChannelContextService
+from services.video_history_service import VideoHistoryService
+from services.entity_history_service import EntityHistoryService
+from services.context_intelligence_service import ContextIntelligenceService
 
 
 class AnalysisService:
@@ -51,6 +58,10 @@ class AnalysisService:
         self.entity_sentiment = EntitySentimentService()
         self.entity_risk = EntityRiskService()
         self.entity_summary = EntitySummaryService()
+        self.channel_service = ChannelContextService()
+        self.video_history = VideoHistoryService()
+        self.entity_history = EntityHistoryService()
+        self.context_intelligence = ContextIntelligenceService()
 
     def create_youtube_analysis(self, user_id, video_url, comment_limit=100):
         video_id = self.youtube_service.extract_video_id(video_url)
@@ -251,6 +262,50 @@ class AnalysisService:
             except Exception as e:
                 current_app.logger.warning(f'Entity intelligence failed: {e}')
 
+        if current_app.config.get('ENABLE_CHANNEL_INTELLIGENCE', True):
+            try:
+                channel_id = video_info.get('channel', 'Unknown').replace(' ', '_').lower()
+                channel_name = video_info.get('channel', 'Unknown')
+                channel_obj = self.channel_service.get_or_create_channel(
+                    user_id, channel_id, channel_name
+                )
+                entity_names = [e.normalized_name for e in entities]
+                entity_count = len(entities)
+                avg_sent = analysis.average_sentiment or 50.0
+                avg_r = analysis.average_risk if hasattr(analysis, 'average_risk') and analysis.average_risk else 0.0
+
+                self.video_history.record_video_analysis(
+                    analysis.id, user_id, video_id, channel_id,
+                    video_info.get('title', ''), entity_count,
+                    avg_sent, avg_r,
+                    top_entities=entity_names[:10],
+                )
+
+                for entity in entities:
+                    entity_avg_sent = 50.0
+                    entity_avg_risk = 0.0
+                    ecs = EntityContext.query.filter_by(entity_id=entity.id).all()
+                    if ecs:
+                        entity_avg_sent = sum(ec.entity_sentiment_score or 50.0 for ec in ecs) / len(ecs)
+                        entity_avg_risk = sum(ec.entity_risk_score or 0.0 for ec in ecs) / len(ecs)
+                    self.entity_history.record_entity_history(
+                        analysis.id, user_id, video_id, channel_id,
+                        entity.normalized_name, entity.entity_type,
+                        entity_avg_sent, entity_avg_risk,
+                        entity.frequency or 0, entity.importance_score or 0.0,
+                    )
+
+                self.channel_service.update_channel_stats(user_id, channel_id)
+
+                context_intel = self.context_intelligence.compute_intelligence(
+                    user_id, channel_id, analysis.id,
+                    entity_names=entity_names,
+                    current_sentiment=avg_sent,
+                    current_risk=avg_r,
+                )
+            except Exception as e:
+                current_app.logger.warning(f'Channel intelligence failed: {e}')
+
         return {
             'success': True,
             'analysis_id': analysis.id,
@@ -383,6 +438,43 @@ class AnalysisService:
                 entity_summary_data = self.entity_summary.generate_summary(entities, entity_sentiments, entity_risks)
             except Exception as e:
                 current_app.logger.warning(f'Entity intelligence failed: {e}')
+
+        if current_app.config.get('ENABLE_CHANNEL_INTELLIGENCE', True):
+            try:
+                channel_id = post_info.get('subreddit', 'reddit').replace(' ', '_').lower()
+                channel_name = f"r/{post_info.get('subreddit', 'reddit')}"
+                channel_obj = self.channel_service.get_or_create_channel(
+                    user_id, channel_id, channel_name
+                )
+                entity_names = [e.normalized_name for e in entities]
+                entity_count = len(entities)
+                avg_sent = analysis.average_sentiment or 50.0
+
+                if current_app.config.get('ENABLE_HISTORICAL_CONTEXT', True):
+                    self.video_history.record_video_analysis(
+                        analysis.id, user_id, post_info.get('post_id', ''),
+                        channel_id, post_info.get('title', ''), entity_count,
+                        avg_sent, analysis.average_risk or 0.0,
+                        top_entities=entity_names[:10],
+                    )
+
+                    for entity in entities:
+                        entity_avg_sent = 50.0
+                        entity_avg_risk = 0.0
+                        ecs = EntityContext.query.filter_by(entity_id=entity.id).all()
+                        if ecs:
+                            entity_avg_sent = sum(ec.entity_sentiment_score or 50.0 for ec in ecs) / len(ecs)
+                            entity_avg_risk = sum(ec.entity_risk_score or 0.0 for ec in ecs) / len(ecs)
+                        self.entity_history.record_entity_history(
+                            analysis.id, user_id, post_info.get('post_id', ''),
+                            channel_id, entity.normalized_name, entity.entity_type,
+                            entity_avg_sent, entity_avg_risk,
+                            entity.frequency or 0, entity.importance_score or 0.0,
+                        )
+
+                    self.channel_service.update_channel_stats(user_id, channel_id)
+            except Exception as e:
+                current_app.logger.warning(f'Channel intelligence failed: {e}')
 
         return {
             'success': True,
@@ -579,6 +671,8 @@ class AnalysisService:
 
         entities_list = []
         entity_summary_data_list = {}
+        context_intelligence = None
+        channel_data = {}
         if youtube or (analysis.analysis_type == 'reddit' and reddit):
             entities_list = Entity.query.filter_by(analysis_id=analysis_id).order_by(Entity.importance_score.desc()).all()
             if entities_list:
@@ -617,6 +711,21 @@ class AnalysisService:
                     risks_for_summary.append({'entity_name': e.normalized_name, 'average_risk_score': avg_r})
                 entity_summary_data_list = EntitySummaryService().generate_summary(entities_list, sentiments_for_summary, risks_for_summary)
 
+            if youtube and current_app.config.get('ENABLE_CHANNEL_INTELLIGENCE', True):
+                try:
+                    channel_id = youtube.channel_name.replace(' ', '_').lower() if youtube.channel_name else 'unknown'
+                    context_intel = self.context_intelligence.compute_intelligence(
+                        user_id, channel_id, analysis_id,
+                        entity_names=[e.normalized_name for e in entities_list],
+                        current_sentiment=averages.get('avg_sentiment', 50.0),
+                        current_risk=averages.get('avg_risk', 0.0),
+                    )
+                    channel_obj = self.channel_service.get_channel_intelligence(user_id, channel_id)
+                    channel_data = channel_obj
+                    context_intelligence = context_intel
+                except Exception as e:
+                    current_app.logger.warning(f'Context intelligence lookup failed: {e}')
+
         result = {
             'analysis': analysis,
             'comments': comments,
@@ -630,6 +739,8 @@ class AnalysisService:
             'transcript': transcript,
             'context_distribution': context_distribution,
             'entity_summary': entity_summary_data_list if youtube or (reddit and analysis.analysis_type == 'reddit') else {},
+            'context_intelligence': context_intelligence,
+            'channel_data': channel_data,
         }
 
         entity_objects = Entity.query.filter_by(analysis_id=analysis_id).order_by(Entity.importance_score.desc()).limit(20).all()
@@ -742,6 +853,7 @@ class AnalysisService:
             'entity_risk_medium': entity_risk_medium,
             'entity_risk_high': entity_risk_high,
             'entity_risk_critical': entity_risk_critical,
+            'total_videos_analyzed': VideoContextHistory.query.filter_by(user_id=user_id).count(),
         }
 
     def get_all_user_analyses_with_data(self, user_id, limit=None):

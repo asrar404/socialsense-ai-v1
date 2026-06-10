@@ -107,6 +107,20 @@ class BackgroundWorker:
 
                 self.job_repo.update_progress(job_id, 90, 'Analyzing Entity Context')
 
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 93, 'Loading Channel History')
+                self.log_repo.create_log(job_id, 'INFO', 'Loading channel context and video history.', 'Channel')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 95, 'Computing Historical Trends')
+                self.log_repo.create_log(job_id, 'INFO', 'Computing historical entity and topic trends.', 'Trends')
+
+                self._check_cancelled(job_id)
+
+                self.job_repo.update_progress(job_id, 97, 'Generating Context Intelligence')
+
                 if job.platform == 'youtube':
                     result = self.analysis_service.create_youtube_analysis(
                         job.user_id, job.source_input, comment_limit=job.comment_limit

@@ -16,3 +16,6 @@ from models.comment_context import CommentContext
 from models.entity import Entity
 from models.entity_mention import EntityMention
 from models.entity_context import EntityContext
+from models.channel_context import ChannelContext
+from models.video_context_history import VideoContextHistory
+from models.entity_history import EntityHistory

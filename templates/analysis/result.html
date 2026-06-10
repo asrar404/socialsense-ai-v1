@@ -290,6 +290,79 @@
 </div>
 {% endif %}
 
+{% if data.context_intelligence %}
+<div class="card border-success border-opacity-25 mb-4">
+    <div class="card-header bg-dark d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="fas fa-network-wired me-2 text-success"></i>Channel Context Intelligence</h6>
+        {% if data.context_intelligence.trend_direction %}
+        <span class="badge bg-{{ 'success' if data.context_intelligence.trend_direction == 'positive' else 'danger' if data.context_intelligence.trend_direction == 'negative' else 'secondary' }}">
+            <i class="fas fa-{{ 'arrow-up' if data.context_intelligence.trend_direction == 'positive' else 'arrow-down' if data.context_intelligence.trend_direction == 'negative' else 'minus' }} me-1"></i>
+            {{ data.context_intelligence.trend_direction|title }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Historical Context</small>
+                    <span class="fw-bold fs-4 text-info">{{ data.context_intelligence.historical_context }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Entity Recurrence</small>
+                    <span class="fw-bold fs-4 text-primary">{{ data.context_intelligence.entity_recurrence }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Topic Recurrence</small>
+                    <span class="fw-bold fs-4 text-warning">{{ data.context_intelligence.topic_recurrence }}</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="bg-dark rounded p-3 text-center h-100">
+                    <small class="text-muted d-block">Channel Relevance</small>
+                    <span class="fw-bold fs-4 text-success">{{ data.context_intelligence.channel_relevance }}</span>
+                </div>
+            </div>
+        </div>
+        {% if data.context_intelligence.trends and data.context_intelligence.trends.previous_video_count > 0 %}
+        <div class="bg-dark rounded p-3">
+            <h6 class="small text-muted mb-2"><i class="fas fa-chart-line me-1"></i>Historical Trends</h6>
+            <div class="row g-2 text-center">
+                <div class="col-4">
+                    <small class="text-muted d-block">Previous Videos</small>
+                    <span class="fw-bold">{{ data.context_intelligence.trends.previous_video_count }}</span>
+                </div>
+                <div class="col-4">
+                    <small class="text-muted d-block">Sentiment Change</small>
+                    <span class="fw-bold text-{{ 'success' if data.context_intelligence.trends.avg_sentiment_change >= 0 else 'danger' }}">
+                        {{ '%+.1f'|format(data.context_intelligence.trends.avg_sentiment_change) }}
+                    </span>
+                </div>
+                <div class="col-4">
+                    <small class="text-muted d-block">Risk Change</small>
+                    <span class="fw-bold text-{{ 'success' if data.context_intelligence.trends.avg_risk_change <= 0 else 'danger' }}">
+                        {{ '%+.1f'|format(data.context_intelligence.trends.avg_risk_change) }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if data.context_intelligence.recurring_topics %}
+        <div class="mt-2">
+            <small class="text-muted">Recurring Topics: </small>
+            {% for t in data.context_intelligence.recurring_topics[:5] %}
+            <span class="badge bg-secondary me-1">{{ t.topic }} ({{ t.appearances }})</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% if data.entities %}
 <div class="card border-secondary bg-dark mb-4">
     <div class="card-header bg-dark border-secondary d-flex justify-content-between align-items-center">
